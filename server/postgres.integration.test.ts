@@ -219,7 +219,10 @@ describePostgres("PostgreSQL-backed contracted procedures", () => {
     expect((await outsider.mentorship.matches()).some((match) => match.id === ownedMatchId)).toBe(false);
     expect((await caller("subjectMentor").mentorship.matches()).some((match) => match.id === ownedMatchId)).toBe(true);
 
-    const updated = await caller("subjectMentor").mentorship.updateMatch({
+    const participant = caller("subjectMentor");
+    await expect(participant.mentorship.updateMatch({ id: ownedMatchId, status: "paused" })).rejects.toThrow(/awaiting coordinator/i);
+    expect((await caller("admin").admin.approveMatch({ id: ownedMatchId, approve: true })).status).toBe("active");
+    const updated = await participant.mentorship.updateMatch({
       id: ownedMatchId, goal: "[synthetic test] updated", meetingUrl: "https://example.invalid/meet",
       nextMeeting: "2026-12-01T18:00:00Z", status: "paused",
     });

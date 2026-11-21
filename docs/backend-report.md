@@ -37,3 +37,13 @@ No grandchildren; no auto-respawn; no other owners' panes touched.
 ## Files to stage (backend-owned)
 
 `server/**` (incl. new tests: auth, matching, mentorship, content, ai, router-errors, postgres.integration, local-bootstrap, domain, content-utils, import-utils, db/schema), `scripts/**` (migrate, seed, local-session.mjs/.d.mts), `drizzle/**`, `app/api/trpc/[trpc]/route.ts`, `app/api/auth/verify/route.ts`.
+
+## tw-review fix round (11:58 MST)
+
+- `parseSiteDocument` rejects blank section titles; `publishContent` refuses a site with zero enabled sections (PRECONDITION_FAILED) — RED→GREEN in content-utils/content tests.
+- `/api/trpc` 503 body now tRPC-shaped `{error:{message}}` so lib/api.ts shows the guidance.
+- CSV export strips control chars and neutralizes leading tab/CR/LF payloads.
+- `mentorship.decide` rejects self-match (FORBIDDEN).
+- `mentorship.updateMatch` allows pause/complete only from ACTIVE; integration test asserts the awaiting-coordinator rejection.
+- `admin.approveMatch` acts only on awaiting-coordinator matches (NOT_FOUND otherwise).
+- Final: `npm test` → 185 unit passed; Neon integration suite → 11/11; typecheck clean.
