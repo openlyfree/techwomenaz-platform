@@ -104,6 +104,7 @@ export function defaultJoinInput(): JoinInput {
     major: "",
     career: "",
     interestAnswer: "",
+    password: "",
     newsletterConsent: false,
   };
 }
@@ -114,7 +115,14 @@ export function validateJoin(input: JoinInput): FieldErrors {
     errors.name = "Enter your name so we can address you correctly.";
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((input.email ?? "").trim())) {
-    errors.email = "Enter a valid email address so we can send your sign-in link.";
+    errors.email = "Enter a valid email address for your account and coordinator updates.";
+  }
+  if (input.password !== undefined) {
+    if ((input.password ?? "").length < 8) {
+      errors.password = "Choose a password of at least 8 characters so you can sign in.";
+    } else if ((input.password ?? "").length > 200) {
+      errors.password = "Keep your password under 200 characters.";
+    }
   }
   if (!Array.isArray(input.experience) || input.experience.length === 0) {
     errors.experience = "Choose at least one area of experience, or select Other.";

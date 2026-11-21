@@ -17,6 +17,15 @@ export const inputClass =
 
 const labelClass = "mb-1 block text-sm font-semibold text-[#1f2a44]";
 const hintClass = "mt-1 block text-xs leading-5 text-[#5b6172]";
+const errorClass = "mt-1 text-xs leading-5 text-[#b3261e]";
+
+/** Stable ids let every control describe its hint and, when present, its error. */
+export function describedById(id: string, hint?: string, error?: string): string | undefined {
+  const ids: string[] = [];
+  if (hint) ids.push(`${id}-hint`);
+  if (error) ids.push(`${id}-error`);
+  return ids.length > 0 ? ids.join(" ") : undefined;
+}
 
 function FieldShell({
   id,
@@ -37,12 +46,15 @@ function FieldShell({
         {label}
       </label>
       {children}
+      {hint ? (
+        <span id={`${id}-hint`} className={hintClass}>
+          {hint}
+        </span>
+      ) : null}
       {error ? (
-        <p className="mt-1 text-xs leading-5 text-[#b3261e]" role="alert">
+        <p id={`${id}-error`} className={errorClass} role="alert">
           {error}
         </p>
-      ) : hint ? (
-        <span className={hintClass}>{hint}</span>
       ) : null}
     </div>
   );
@@ -89,6 +101,7 @@ export function TextField({
         min={min}
         max={max}
         aria-invalid={error ? true : undefined}
+        aria-describedby={describedById(id, hint, error)}
         onChange={(event) => onChange(event.target.value)}
       />
     </FieldShell>
@@ -124,6 +137,7 @@ export function TextAreaField({
         value={value}
         placeholder={placeholder}
         aria-invalid={error ? true : undefined}
+        aria-describedby={describedById(id, hint, error)}
         onChange={(event) => onChange(event.target.value)}
       />
     </FieldShell>
@@ -155,6 +169,7 @@ export function SelectField({
         className={inputClass}
         value={value}
         aria-invalid={error ? true : undefined}
+        aria-describedby={describedById(id, hint, error)}
         onChange={(event) => onChange(event.target.value)}
       >
         {options.map((option) => (
@@ -189,11 +204,16 @@ export function CheckboxField({
           type="checkbox"
           checked={checked}
           className="mt-1 h-5 w-5 shrink-0 accent-[#c2572a]"
+          aria-describedby={hint ? `${id}-hint` : undefined}
           onChange={(event) => onChange(event.target.checked)}
         />
         <span className="text-sm leading-6 text-[#1f2a44]">
           {label}
-          {hint ? <span className={hintClass}>{hint}</span> : null}
+          {hint ? (
+            <span id={`${id}-hint`} className={hintClass}>
+              {hint}
+            </span>
+          ) : null}
         </span>
       </label>
     </div>
@@ -208,6 +228,7 @@ export function TagEditor({
   onChange,
   suggestions = [],
   hint,
+  error,
 }: {
   id: string;
   label: string;
@@ -215,6 +236,7 @@ export function TagEditor({
   onChange: (values: string[]) => void;
   suggestions?: string[];
   hint?: string;
+  error?: string;
 }) {
   const [draft, setDraft] = useState("");
   const add = (value: string) => {
@@ -257,6 +279,8 @@ export function TagEditor({
           className={inputClass}
           value={draft}
           aria-labelledby={`${id}-label`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedById(id, hint, error)}
           placeholder="Type a value and press Add"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -283,7 +307,16 @@ export function TagEditor({
           ))}
         </div>
       ) : null}
-      {hint ? <span className={hintClass}>{hint}</span> : null}
+      {hint ? (
+        <span id={`${id}-hint`} className={hintClass}>
+          {hint}
+        </span>
+      ) : null}
+      {error ? (
+        <p id={`${id}-error`} className={errorClass} role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -388,7 +421,15 @@ export function AvailabilityEditor({
   };
 
   return (
-    <section className="w-full min-w-0" aria-labelledby="availability-label">
+    <section
+      className="w-full min-w-0"
+      aria-labelledby="availability-label"
+      aria-describedby={
+        ["availability-hint", localError ? "availability-local-error" : null, error ? "availability-error" : null]
+          .filter(Boolean)
+          .join(" ") || undefined
+      }
+    >
       <span className={labelClass} id="availability-label">
         Weekly availability
       </span>
@@ -424,7 +465,7 @@ export function AvailabilityEditor({
         </Button>
       </div>
       {localError ? (
-        <p className="mt-2 text-xs leading-5 text-[#b3261e]" role="alert">
+        <p id="availability-local-error" className="mt-2 text-xs leading-5 text-[#b3261e]" role="alert">
           {localError}
         </p>
       ) : null}
@@ -440,7 +481,7 @@ export function AvailabilityEditor({
         </p>
       ) : null}
       {error ? (
-        <p className="mt-2 text-xs leading-5 text-[#b3261e]" role="alert">
+        <p id="availability-error" className="mt-2 text-xs leading-5 text-[#b3261e]" role="alert">
           {error}
         </p>
       ) : null}
@@ -471,5 +512,75 @@ export function AvailabilityEditor({
         {dayLabel} {start} to {end}
       </p>
     </section>
+  );
+}
+
+/**
+ * Announced error summary shown at the top of a form after a failed submit.
+ * Each message is a link to the field that needs attention; field errors stay
+ * inline as well so the two cues reinforce each other.
+ */
+export function FormErrorSummary({
+  errors,
+  id = "form-error-summary",
+  idPrefix,
+  fieldIds,
+}: {
+  errors: Record<string, string>;
+  id?: string;
+  idPrefix?: string;
+  fieldIds?: Record<string, string>;
+}) {
+  const entries = Object.entries(errors).filter(([, message]) => Boolean(message));
+  if (entries.length === 0) return null;
+  const targetFor = (key: string) => fieldIds?.[key] ?? (idPrefix ? `${idPrefix}-${key}` : key);
+  return (
+    <div
+      id={id}
+      className="rounded-lg border border-[#e6c987] bg-[#fff7e6] p-3 text-sm leading-6 text-[#7a5300]"
+      role="alert"
+      aria-labelledby={`${id}-title`}
+      tabIndex={-1}
+    >
+      <p id={`${id}-title`} className="m-0 font-semibold">
+        Please fix the following:
+      </p>
+      <ul className="mb-0 mt-1 list-disc pl-5">
+        {entries.map(([key, message]) => (
+          <li key={key}>
+            <a className="underline" href={`#${targetFor(key)}`}>
+              {message}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Persistent polite live region: both successful and failed async saves are announced. */
+export function AsyncStatus({
+  message,
+  tone = "success",
+  className = "",
+}: {
+  message?: string | null;
+  tone?: "success" | "error";
+  className?: string;
+}) {
+  const visible = Boolean(message);
+  const toneClass =
+    tone === "error"
+      ? "rounded-lg bg-[#fff1f0] p-3 text-sm leading-6 text-[#b3261e]"
+      : "rounded-lg bg-[#eef7ee] p-3 text-sm leading-6 text-[#2e7d32]";
+  return (
+    <div
+      className={`${visible ? toneClass : "sr-only"} ${className}`}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {message ?? ""}
+    </div>
   );
 }

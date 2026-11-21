@@ -21,6 +21,8 @@ export default defineConfig({
         dev: { connectionString: process.env.DATABASE_URL },
       }),
       AI: bindings.ai(),
+      // Staff approval by default; only a verified instruction may flip this to false.
+      // Melissa's truncated screenshot was ambiguous, so we keep the documented default.
       REQUIRE_MATCH_APPROVAL: bindings.text("true"),
       DEMO_MODE: bindings.text("true"),
     },
@@ -28,8 +30,8 @@ export default defineConfig({
     previewUrls: true,
     observability: {
       enabled: true,
-      logs: { enabled: true },
-      traces: { enabled: true, headSamplingRate: 0.25 },
+      logs: { enabled: true, persist: true },
+      traces: { enabled: true, headSamplingRate: 0.25, persist: true },
     },
   }),
 });

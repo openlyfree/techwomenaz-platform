@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="TechWomenAZ">
+  <rect width="64" height="64" rx="14" fill="#F8F3EE"/>
+  <path d="M8 56V32a24 24 0 0 1 48 0v24" fill="none" stroke="#C46A2B" stroke-width="5" stroke-linecap="round"/>
+  <path d="M14 56V33a18 18 0 0 1 36 0v23" fill="none" stroke="#C46A2B" stroke-opacity=".45" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="32" y="43" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="25" font-weight="700" letter-spacing="-1" fill="#2E4057">TW</text>
+</svg>

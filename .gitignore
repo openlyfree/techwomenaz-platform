@@ -22,6 +22,7 @@ backups/
 playwright/.auth/
 test-results/
 playwright-report/
+artifacts/
 *.log
 *.tsbuildinfo
 opencode.local.jsonc

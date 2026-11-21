@@ -46,3 +46,10 @@ Shared root navigation links: /, /about, /events, /mentorship, /join, /login, /p
 UI owners use lib/api.ts hooks/helpers, import DTOs only as types. Missing session: show login action, never invent a user. Integration errors explain configuration honestly. Synthetic profiles must be labeled as demo; counts are queried from Postgres.
 
 Correction: nonprofit screenshot text has NOT been verified. Keep mutual Interested creating awaiting-coordinator matches by default; configurable REQUIRE_MATCH_APPROVAL=false may allow self-directed activation after a verified user instruction. Fields major, career, interests and interestAnswer are proposed useful fields in lib/contracts.ts, not verified quotations from Melissa. Include in join/profile and searchable admin member views. Both roles set availability, timezone, meetingFormat; only overlap-compatible results appear, Jev considers these context alongside goals/expertise. Canonical interests include Learning AI, Networking and Finding a mentor. Jev categorization suggestions are editable; no automatic email subscription.
+
+## Additions (v2, user-approved feature set)
+- query directory.list → DirectoryEntry[] — authenticated opt-in professional directory. No emails, phone numbers, bios, private notes or availability slots; only public-safe profile fields of approved, discoverable members.
+- query audit.list → AuditEvent[] — admin-only, newest-first view of the append-only staff audit log.
+- Server-side audit events are recorded inside these mutations: membership approve/pause, match approve/decline, content save/publish, event create/update, import commit.
+- Shared navigation additions: /portal/directory (member directory) and /admin/audit (staff audit log).
+- Calendar sync: match detail offers the existing .ics download plus a Google Calendar template link built from the same meeting data (no server state changes).

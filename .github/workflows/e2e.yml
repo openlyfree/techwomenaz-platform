@@ -1,0 +1,44 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      # Anonymous smoke + auth-gate tests run here. The admin/portal journey
+      # needs a private local session cookie and skips on CI runners by design.
+      - name: Run Playwright tests
+        run: npm run test:e2e
+        env:
+          CI: true
+          E2E_BASE_URL: http://127.0.0.1:3100
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          APP_ORIGIN: http://127.0.0.1:3100
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            artifacts/
+            test-results/
+          retention-days: 30

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { mutate, useQuery, useSession } from "@/lib/api";
 import type { DiscoveryCard, DiscoveryResult, Member } from "@/lib/contracts";
 import { Button, Card, EmptyState, ErrorNotice, Loading, PageHeading } from "@/components/ui";
+import { StatusNotice } from "./MatchDetail";
 import { DiscoveryCardView } from "./DiscoveryCardView";
 import { eyebrow, focusRing, shell, toggle } from "./styles";
 import {
@@ -142,11 +143,7 @@ export function DiscoveryBoard() {
                   </div>
                 </div>
 
-                {notice ? (
-                  <p aria-live="polite" className="m-0 rounded-[10px] bg-[#FFF4E8] px-4 py-3 text-[0.92rem] leading-[1.6] text-[#6B4A31]" role="status">
-                    {notice}
-                  </p>
-                ) : null}
+                <StatusNotice message={notice} />
 
                 {discovery.loading ? <Loading label="Loading compatible members…" /> : null}
                 {discovery.error ? (

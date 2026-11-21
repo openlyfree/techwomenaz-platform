@@ -1,39 +1,57 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, LogOut, Mail } from "lucide-react";
+import { ArrowRight, LogOut, Mail, LockKeyhole } from "lucide-react";
 import { mutate, useSession } from "@/lib/api";
-import { Badge, Button, Card, EmptyState, ErrorNotice, Loading, PageHeading } from "@/components/ui";
-import { TextField } from "@/components/membership/form-fields";
+import { Badge, Button, Card, ErrorNotice, Loading, PageHeading } from "@/components/ui";
+import { AsyncStatus, FormErrorSummary, TextField } from "@/components/membership/form-fields";
 import { safeError } from "@/components/membership/form-helpers";
 
 export default function LoginPage() {
   const session = useSession();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [signingOut, setSigningOut] = useState(false);
+  const [mode, setMode] = useState<"password" | "link">("password");
 
-  const requestLink = async () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Enter the email address you used on your application.");
+  const validEmail = () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const signIn = async () => {
+    const errors: Record<string, string> = {};
+    if (!validEmail()) errors.email = "Enter the email address you used on your application.";
+    if (mode === "password" && password.length === 0) errors.password = "Enter your password.";
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
       setMessage("");
+      setError("");
       return;
     }
     setSending(true);
-    setError("");
+    setFieldErrors({});
     setMessage("");
+    setError("");
     try {
-      const response = await mutate<{ message: string }>("auth.requestLink", { email: email.trim() });
-      setMessage(response.message || "Sign-in link request processed.");
-    } catch (requestError) {
-      setError(
-        safeError(
-          requestError,
-          "We could not send a sign-in link. Email delivery may not be configured; ask the coordinators to check the email integration.",
-        ),
+      if (mode === "password") {
+        await mutate<{ success: true; name: string }>("auth.signIn", { email: email.trim(), password });
+        await session.refresh();
+        setMessage("Signed in. Opening your workspace…");
+      } else {
+        const response = await mutate<{ message: string }>("auth.requestLink", { email: email.trim() });
+        setMessage(response.message || "Sign-in link request processed.");
+      }
+    } catch (failure) {
+      const text = safeError(
+        failure,
+        mode === "password"
+          ? "We could not sign you in. Check your email and password and try again."
+          : "We could not send a sign-in link. Email delivery may not be configured; ask the coordinators to check the email integration.",
       );
+      setError(text);
+      setFieldErrors({ [mode === "password" ? "password" : "email"]: text });
     } finally {
       setSending(false);
     }
@@ -45,8 +63,8 @@ export default function LoginPage() {
     try {
       await mutate<{ success: true }>("auth.signOut", {});
       await session.refresh();
-    } catch (signOutError) {
-      setError(safeError(signOutError, "We could not sign you out. Please try again."));
+    } catch (failure) {
+      setError(safeError(failure, "We could not sign you out. Please try again."));
     } finally {
       setSigningOut(false);
     }
@@ -57,17 +75,10 @@ export default function LoginPage() {
       <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6">
         <PageHeading
           title="Sign in"
-          description="We use single-use email links instead of passwords. Use the address from your membership application."
+          description="Use your email and password, or request a single-use sign-in link if email delivery is configured."
         />
 
-        {session.error ? (
-          <ErrorNotice
-            message={safeError(
-              session.error,
-              "We could not check your session. Refresh the page or ask the coordinators for help.",
-            )}
-          />
-        ) : null}
+        {session.error ? <ErrorNotice message={safeError(session.error, "We could not check your session. Refresh the page or ask the coordinators for help.")} /> : null}
         {error ? <ErrorNotice message={error} /> : null}
 
         {session.loading ? (
@@ -88,17 +99,31 @@ export default function LoginPage() {
           </Card>
         ) : (
           <>
+            <FormErrorSummary errors={fieldErrors} id="login-form-errors" idPrefix="login" />
+            <AsyncStatus message={message} tone="success" />
             <Card>
               <div className="flex flex-col gap-5">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f7e7df] text-[#c2572a]">
-                    <Mail className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <h2 className="m-0 text-base font-semibold">Request a sign-in link</h2>
-                    <p className="m-0 text-sm text-[#5b6172]">The link expires and works once.</p>
-                  </div>
+                <div className="flex gap-2" role="tablist" aria-label="Sign-in method">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === "password"}
+                    onClick={() => { setMode("password"); setFieldErrors({}); setError(""); }}
+                    className={`flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-[13px] font-semibold ${mode === "password" ? "border-[#c2572a] bg-[#c2572a] text-white" : "border-[#d8d2c8] bg-white text-[#5b6172]"}`}
+                  >
+                    <LockKeyhole className="h-4 w-4" aria-hidden="true" /> Email &amp; password
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === "link"}
+                    onClick={() => { setMode("link"); setFieldErrors({}); setError(""); }}
+                    className={`flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-[13px] font-semibold ${mode === "link" ? "border-[#c2572a] bg-[#c2572a] text-white" : "border-[#d8d2c8] bg-white text-[#5b6172]"}`}
+                  >
+                    <Mail className="h-4 w-4" aria-hidden="true" /> Email link
+                  </button>
                 </div>
+
                 <TextField
                   id="login-email"
                   label="Email address"
@@ -107,21 +132,32 @@ export default function LoginPage() {
                   onChange={setEmail}
                   autoComplete="email"
                   placeholder="you@example.com"
+                  hint="Use the address from your application."
+                  error={fieldErrors.email}
                 />
+                {mode === "password" ? (
+                  <TextField
+                    id="login-password"
+                    label="Password"
+                    type="password"
+                    value={password}
+                    onChange={setPassword}
+                    autoComplete="current-password"
+                    placeholder="Your password"
+                    hint="At least 8 characters. Set when you applied, or ask a coordinator to reset it."
+                    error={fieldErrors.password}
+                  />
+                ) : null}
                 <div>
-                  <Button onClick={() => void requestLink()} disabled={sending}>
-                    {sending ? "Requesting…" : <>Email me a sign-in link <ArrowRight className="ml-1 inline h-4 w-4" aria-hidden="true" /></>}
+                  <Button onClick={() => void signIn()} disabled={sending}>
+                    {sending ? "Signing in…" : <>{mode === "password" ? "Sign in" : "Email me a sign-in link"} <ArrowRight className="ml-1 inline h-4 w-4" aria-hidden="true" /></>}
                   </Button>
                 </div>
-                {message ? (
-                  <p className="m-0 rounded-lg bg-[#eef7ee] p-3 text-sm leading-6 text-[#2e7d32]" role="status">
-                    {message}
+                {mode === "link" ? (
+                  <p className="m-0 text-sm text-[#5b6172]">
+                    Links are sent only when email delivery is configured. If it is not, the request reports that honestly rather than pretending to send. Password sign-in works without email delivery.
                   </p>
                 ) : null}
-                <EmptyState
-                  title="No email arrived?"
-                  description="Links are sent only when email delivery is configured. If it is not configured, the request will report that honestly rather than pretending to send. Confirm you used your application address, or contact a coordinator."
-                />
               </div>
             </Card>
             <p className="m-0 text-sm text-[#5b6172]">
@@ -129,6 +165,7 @@ export default function LoginPage() {
               <a className="font-semibold text-[#c2572a] underline" href="/join">
                 Apply to join
               </a>
+              {" — you can set a password on the application form."}
             </p>
           </>
         )}

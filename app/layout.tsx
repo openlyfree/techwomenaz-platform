@@ -5,6 +5,19 @@ import { SiteFooter, SiteHeader } from "@/components/shell";
 export const metadata: Metadata = {
   title: { default: "TechWomenAZ — Find your people. Grow your possibilities.", template: "%s · TechWomenAZ" },
   description: "A community supporting women in Arizona's tech ecosystem through mentorship, learning and meaningful connection. Independent hackathon preview.",
+  // Polish: canonical brand and shared description for social previews.
+  openGraph: {
+    title: "TechWomen Arizona",
+    description: "A community supporting women in Arizona's tech ecosystem through mentorship, learning and meaningful connection. Independent hackathon preview.",
+    siteName: "TechWomen Arizona",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary",
+    title: "TechWomen Arizona",
+    description: "A community supporting women in Arizona's tech ecosystem through mentorship, learning and meaningful connection. Independent hackathon preview.",
+  },
   robots: { index: false, follow: false },
 };
 

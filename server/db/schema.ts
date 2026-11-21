@@ -72,6 +72,8 @@ export const members = pgTable("members", {
   id: text("id").primaryKey(),
   // Services are responsible for lowercasing before insert/lookup.
   email: text("email").notNull().unique(),
+  // Optional password credential (PBKDF2). Null members can only use magic links.
+  passwordHash: text("password_hash"),
   name: text("name").notNull(),
   role: memberRole("role").notNull().default("member"),
   participation: participationRole("participation"),
@@ -228,6 +230,15 @@ export const importBatches = pgTable("import_batches", {
   rows: jsonb("rows").$type<ImportBatchRow[]>().notNull().default(emptyArray),
   expiresAt: timestamp("expires_at", timestamptz).notNull(),
   committedAt: timestamp("committed_at", timestamptz),
+  createdAt: timestamp("created_at", timestamptz).notNull().defaultNow(),
+});
+
+/** Durable staff audit trail; rows are append-only and never updated. */
+export const auditEvents = pgTable("audit_events", {
+  id: text("id").primaryKey(),
+  actorName: text("actor_name").notNull(),
+  action: text("action").notNull(),
+  summary: text("summary").notNull(),
   createdAt: timestamp("created_at", timestamptz).notNull().defaultNow(),
 });
 

@@ -14,6 +14,7 @@ Target demo: November 21, 2026, 12:30 PM America/Phoenix. This is an unofficial 
 - Mentorship discovery with Jev-ranked (or manual fallback) eligible profiles, Interested/Pass, mutual interest, coordinator approval by default (`REQUIRE_MATCH_APPROVAL` configurable), goals, meetings, calendar download and author-only private check-ins.
 - Staff console with real Postgres statistics, AI-assisted landing-page drafts, preview, publish and rollback, newsletter drafting with HubSpot copy/export handoff, event management and truthful integration status.
 - End-to-end Playwright journeys at desktop and 360px mobile widths; unit, integration and real-Postgres suites green at feature freeze (see docs/backend-report.md).
+- Quality polish pass: branded 404/error/loading states, SVG favicon, robots.txt and sitemap, accessible form hints/error summaries/live confirmations, responsive admin card views, branded real copy for the public site (synthetic data still honestly labeled), and a plain-language feature guide in docs/FEATURES.md.
 
 ### Known gaps
 

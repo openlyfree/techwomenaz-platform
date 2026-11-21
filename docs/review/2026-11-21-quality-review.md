@@ -65,5 +65,15 @@ qr-matches verified-good: private notes author-only (incl. staff); reciprocal-ro
 ## Lineage
 
 - Controller → tw-review (this pane, wJ:pA).
-- tw-review → qr-api (wJ:pS, done, reaped), qr-content (wJ:pV, done, reaped), qr-matches (wJ:pT, child still running at last check — see final report).
-- Children spawned no grandchildren except qr-matches' one import-verification child (read-only), reported in the final report.
+- tw-review → qr-api (wJ:pS, done, reaped), qr-content (wJ:pV, done, reaped), qr-matches (wJ:pT, done; spawned one read-only child qr-imports in wJ:pW, captured by qr-matches and reaped).
+- Workspace wJ was closed by the controller after capture; all qr-* reports were read before close. Nothing left to reap from this review.
+
+## Closure (12:06 MST)
+
+Owner fix requests all landed and were verified in code by this review before freeze:
+
+- tw-lead: publish readiness guard (`server/content.ts:39-42`, `server/content-utils.ts:28-39` title min/blank check), 503 envelope in tRPC v11 shape (`app/api/trpc/[trpc]/route.ts:13-16`), CSV export control-char stripping (`server/router.ts:248-249`), self-match rejection (`server/mentorship.ts:174`), participant status-transition guard (`server/mentorship.ts:238-240`), coordinator-approval source-state check (`server/router.ts:196-201`).
+- tw-admin: settings page now checks `session.error` before the sign-in gate (`app/admin/settings/page.tsx:99-109`); ARIA tabs completed with `aria-controls`/`role="tabpanel"`/arrow-key navigation (`app/admin/content/page.tsx:163-172,207,384,410`).
+- tw-site: mission-only pages get a real heading via sr-only fallback `<h1>` (`components/site/SiteRenderer.tsx:854-861`) and theme is now wired (`document.theme` consumed at `SiteRenderer.tsx:860,875`).
+
+Reproducer suite status at 12:06 (`npx vitest run --config tests/quality/vitest.config.ts`): all six of this review's tests pass. The directory additionally hosts polish workers' in-flight TDD files (`form-a11y.test.ts`, `mentorship-polish.test.ts`, `shell-pages.test.ts`, `admin-responsive.test.ts` — placed here by their owners); 10 of their tests are RED mid-cycle (tw-forms, tw-mentor-polish still working) and belong to those owners' GREEN steps, not to this review.

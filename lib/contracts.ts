@@ -12,7 +12,7 @@ export interface Member {
   major: string; career: string; interests: string[]; interestAnswer: string;
 }
 export interface SessionUser { id: string; name: string; email: string; role: StaffRole }
-export interface JoinInput { name: string; email: string; experience: string[]; interests: string[]; major?: string; career?: string; interestAnswer?: string; newsletterConsent: boolean; turnstileToken?: string }
+export interface JoinInput { name: string; email: string; experience: string[]; interests: string[]; major?: string; career?: string; interestAnswer?: string; password?: string; newsletterConsent: boolean; turnstileToken?: string }
 export interface ProfileInput {
   name: string; participation: ParticipationRole; headline: string; bio: string;
   expertise: string[]; goals: string[]; timezone: string; availability: AvailabilitySlot[];
@@ -41,5 +41,7 @@ export interface Statistics { members: number; mentors: number; mentees: number;
 export interface ImportPreview { rows: { index: number; name: string; email: string; status: "new" | "duplicate" | "invalid"; message: string }[]; newCount: number; duplicateCount: number; invalidCount: number; token: string }
 export interface NewsletterDraft { id: string; subject: string; body: string; updatedAt: string }
 export interface Checkin { id: string; matchId: string; met: boolean; useful: boolean; continue: boolean; privateNote: string; createdAt: string }
+export interface DirectoryEntry { id: string; name: string; headline: string; expertise: string[]; goals: string[]; interests: string[]; meetingFormat: MeetingFormat; location: string; timezone: string; participation: ParticipationRole }
+export interface AuditEvent { id: string; actorName: string; action: string; summary: string; createdAt: string }
 export const EXPERIENCE_AREAS = ["Developer / Engineer", "IT", "Security", "Product Management", "Project Management", "Executive", "Sales", "Marketing", "Legal", "Education", "Finance", "Other"];
 export const INTEREST_AREAS = ["Finding a mentor", "Networking", "Learning AI", "Leadership", "Career development", "Volunteering", "Technical skills"];

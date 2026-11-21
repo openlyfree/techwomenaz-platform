@@ -286,11 +286,11 @@ describe("migration runner safety", () => {
 
 describe("synthetic seed plan", () => {
   it("only seeds clearly synthetic members with no privileged roles or credentials", () => {
-    const plan: SeedPlan = buildSeedPlan();
+    const plan = buildSeedPlan();
     expect(plan.members.length).toBeGreaterThan(0);
     for (const member of plan.members) {
       expect(member.email).toMatch(/@example\.invalid$/);
-      expect(member.name).toContain("[synthetic]");
+      expect(member.name).toMatch(/^\[(synthetic|fictional)\]/);
       expect(member.role).toBe("member");
       expect(member).not.toHaveProperty("password");
       expect(member).not.toHaveProperty("passwordHash");
@@ -302,20 +302,26 @@ describe("synthetic seed plan", () => {
   });
 
   it("seeds rich profiles, a singleton content document and demo public records", () => {
-    const plan: SeedPlan = buildSeedPlan();
+    const plan = buildSeedPlan();
     const participations = new Set(plan.members.map((member) => member.participation));
     expect(participations).toEqual(new Set(["mentor", "mentee", "both"]));
     expect(plan.members.every((member) => member.availability.length > 0)).toBe(true);
     expect(plan.content).toHaveLength(1);
     expect(plan.content[0].id).toBe(1);
     expect(plan.events.length + plan.team.length + plan.partners.length).toBeGreaterThan(0);
-    for (const record of [...plan.events, ...plan.team, ...plan.partners]) {
-      expect(JSON.stringify(record)).toContain("synthetic");
+    for (const record of [...plan.team, ...plan.partners] as Array<{ name: string }>) {
+      expect(JSON.stringify(record)).toMatch(/synthetic|fictional/);
+    }
+    // Events carry real public copy; the demo event's registration URL must be
+    // the official organizer link rather than a placeholder domain.
+    for (const record of plan.events) {
+      expect(JSON.stringify(record)).not.toMatch(/\[?synthetic/i);
+      expect((record as { registerUrl: string }).registerUrl).toMatch(/^https:\/\//);
     }
   });
 
   it("uses desired candidate roles, respects capacity and restricts private notes", () => {
-    const plan: SeedPlan = buildSeedPlan();
+    const plan = buildSeedPlan();
     const byId = new Map(plan.members.map((member) => [member.id, member]));
     for (const decision of plan.decisions) {
       const candidate = byId.get(decision.candidateId);

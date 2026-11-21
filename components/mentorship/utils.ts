@@ -152,6 +152,23 @@ export function buildMatchIcs(match: Match): string | null {
   return `${lines.join("\r\n")}\r\n`;
 }
 
+/** Google Calendar template URL for the same meeting. No API key or OAuth needed. */
+export function buildGoogleCalendarUrl(match: Match): string | null {
+  const startMs = Date.parse(match.nextMeeting ?? "");
+  if (!Number.isFinite(startMs)) return null;
+  const endMs = startMs + 60 * 60 * 1000;
+  // Google Calendar expects UTC timestamps without separators (YYYYMMDDTHHMMSSZ).
+  const format = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `Mentorship session: ${match.mentorName} & ${match.menteeName}`,
+    dates: `${format(startMs)}/${format(endMs)}`,
+    details: match.goal ? `Goal: ${match.goal}` : "Mentorship session",
+    location: safeHttpUrl(match.meetingUrl) ?? "TechWomenAZ mentorship",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 /** Short, actionable errors only; never stringify an unknown object. */
 export function safeMessage(error: unknown, fallback = "Something went wrong. Please try again."): string {
   if (typeof error === "string" && error.trim()) return error.trim().slice(0, 300);

@@ -29,6 +29,8 @@ export interface SiteRendererProps {
   team?: TeamRecord[];
   partners?: PartnerRecord[];
   preview?: boolean;
+  /** When true, every section heading renders at level 2 (landing page after the hero h1). */
+  sectionsLevel2?: boolean;
 }
 
 const focusRing =
@@ -775,6 +777,7 @@ function SectionView({
   partners,
   preview,
   firstHeadingId,
+  sectionsLevel2 = false,
 }: {
   section: SiteSection;
   events: EventRecord[];
@@ -782,9 +785,10 @@ function SectionView({
   partners: PartnerRecord[];
   preview: boolean;
   firstHeadingId?: string;
+  sectionsLevel2?: boolean;
 }) {
   const hidden = preview && !section.enabled;
-  const level: 1 | 2 = section.id === firstHeadingId ? 1 : 2;
+  const level: 1 | 2 = !sectionsLevel2 && section.id === firstHeadingId ? 1 : 2;
   let content: React.ReactNode = null;
   switch (section.type) {
     case "hero":
@@ -846,16 +850,17 @@ export function SiteRenderer({
   team = [],
   partners = [],
   preview = false,
+  sectionsLevel2 = false,
 }: SiteRendererProps) {
   const visibleSections = document.sections.filter((section) => preview || section.enabled);
-  const firstHeadingId = visibleSections.find((section) =>
-    VISIBLE_HEADING_TYPES.includes(section.type),
-  )?.id;
-  const fallbackHeading = visibleSections.some((section) =>
-    VISIBLE_HEADING_TYPES.includes(section.type),
-  )
+  const firstHeadingId = sectionsLevel2
+    ? undefined
+    : visibleSections.find((section) => VISIBLE_HEADING_TYPES.includes(section.type))?.id;
+  const fallbackHeading = sectionsLevel2
     ? null
-    : visibleSections[0]?.title;
+    : visibleSections.some((section) => VISIBLE_HEADING_TYPES.includes(section.type))
+      ? null
+      : visibleSections[0]?.title;
   const palette =
     document.theme === "navy"
       ? {
@@ -885,6 +890,7 @@ export function SiteRenderer({
           partners={partners}
           preview={preview}
           firstHeadingId={firstHeadingId}
+          sectionsLevel2={sectionsLevel2}
         />
       ))}
     </div>

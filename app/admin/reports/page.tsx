@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@/lib/api";
 import type { Statistics } from "@/lib/contracts";
 import type { IntegrationStatus } from "@/components/admin/integrations";
@@ -11,6 +12,12 @@ import { meetingRate, statCards, trendTotal } from "@/components/admin/report-ut
 export default function AdminReportsPage() {
   const stats = useQuery<Statistics>("admin.stats");
   const integrations = useQuery<IntegrationStatus>("admin.integrations");
+  const [notice, setNotice] = useState("");
+
+  function refreshReports() {
+    setNotice("Report data refreshed.");
+    void stats.refresh();
+  }
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-6">
@@ -26,6 +33,16 @@ export default function AdminReportsPage() {
           {integrations.data?.demo ? <Badge>Sample data · demo mode</Badge> : null}
         </div>
       </header>
+
+      {/* Live region is always mounted so a screen reader announces later confirmations. */}
+      <p
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className={notice ? "m-0 mb-4 rounded-[6px] border border-[#B7C9A8] bg-[#F2F8EC] px-4 py-3 text-[0.92rem] text-[#37522B]" : "sr-only"}
+      >
+        {notice}
+      </p>
 
       {stats.loading ? <Loading label="Loading report data…" /> : null}
       {stats.error ? <ErrorNotice message={errorText(stats.error)} /> : null}
@@ -43,7 +60,7 @@ export default function AdminReportsPage() {
               <h2 id="summary-heading" className="m-0 text-[1.6rem] font-normal text-[#C85512]">Program summary</h2>
               <button
                 className="inline-flex min-h-[44px] items-center rounded-full border border-[#DE6219] px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#C85512] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#DE6219]"
-                onClick={() => void stats.refresh()}
+                onClick={refreshReports}
                 type="button"
               >
                 Refresh
@@ -104,28 +121,40 @@ export default function AdminReportsPage() {
                     />
                   </svg>
                 </Card>
-                <div className="grid gap-2 sm:hidden">
+                {/* Below md: one labeled card per recorded day; every table column is preserved. */}
+                <div className="grid gap-2 md:hidden">
                   {stats.data.signupTrend.map((point: Statistics["signupTrend"][number]) => (
-                    <Card key={point.date} className="flex items-center justify-between gap-3 p-4">
-                      <span className="text-[0.95rem] text-[#22395A]">{formatShortDate(point.date)}</span>
-                      <Badge>{formatNumber(point.count)} signups</Badge>
+                    <Card key={point.date} className="min-w-0 p-4">
+                      <dl className="m-0 grid grid-cols-2 gap-3 text-[0.92rem]">
+                        <div className="min-w-0">
+                          <dt className="m-0 text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-[#8B7D73]">Date</dt>
+                          <dd className="m-0 mt-1 break-words text-[#22395A]">{formatShortDate(point.date)}</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="m-0 text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-[#8B7D73]">New members</dt>
+                          <dd className="m-0 mt-1 break-words text-[#C85512]">{formatNumber(point.count)}</dd>
+                        </div>
+                      </dl>
                     </Card>
                   ))}
                 </div>
-                <Card className="hidden overflow-hidden p-0 sm:block">
-                  <table className="w-full border-collapse text-left text-[0.92rem]">
-                    <thead className="bg-[#F8F3EE] text-[0.72rem] uppercase tracking-[0.12em] text-[#6B5E56]">
-                      <tr><th className="p-4 font-semibold">Date</th><th className="p-4 font-semibold">New members</th></tr>
-                    </thead>
-                    <tbody>
-                      {stats.data.signupTrend.map((point: Statistics["signupTrend"][number]) => (
-                        <tr className="border-t border-[#E1D2C7]" key={point.date}>
-                          <td className="p-4 text-[#22395A]">{formatShortDate(point.date)}</td>
-                          <td className="p-4 text-[#C85512]">{formatNumber(point.count)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* md and up: semantic table, horizontally scrollable on narrower tablets. */}
+                <Card className="hidden overflow-hidden p-0 md:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[28rem] border-collapse text-left text-[0.92rem]">
+                      <thead className="bg-[#F8F3EE] text-[0.72rem] uppercase tracking-[0.12em] text-[#6B5E56]">
+                        <tr><th className="p-4 font-semibold">Date</th><th className="p-4 font-semibold">New members</th></tr>
+                      </thead>
+                      <tbody>
+                        {stats.data.signupTrend.map((point: Statistics["signupTrend"][number]) => (
+                          <tr className="border-t border-[#E1D2C7]" key={point.date}>
+                            <td className="p-4 text-[#22395A]">{formatShortDate(point.date)}</td>
+                            <td className="p-4 text-[#C85512]">{formatNumber(point.count)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </Card>
               </>
             ) : (

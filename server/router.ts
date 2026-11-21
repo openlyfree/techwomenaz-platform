@@ -3,11 +3,10 @@ import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Member, SessionUser, StaffRole } from "../lib/contracts";
 import type { Database } from "./db";
-import { events, matches, members, newsletterDrafts, partners, team, checkins } from "./db/schema";
-import type { RuntimeEnv } from "./env";
+import { auditEvents, checkins, matches, members, newsletterDrafts, partners, sessions, team, events } from "./db/schema";import type { RuntimeEnv } from "./env";
 import { integrationFlags } from "./env";
-import { clearSessionCookie, destroySession, getSessionUser, sendMagicLink } from "./auth";
-import { normalizeEmail } from "./auth-utils";
+import { clearSessionCookie, destroySession, getSessionUser, sendMagicLink, sessionCookie } from "./auth";
+import { createOpaqueToken, hashAuthToken, hashPassword, normalizeEmail, passwordIsAcceptable, verifyPasswordForSignIn } from "./auth-utils";
 import { toEvent, toMember } from "./mappers";
 import { isValidAvailability, isValidTimezone } from "./domain";
 import { siteDocumentSchema } from "./content-utils";
@@ -96,6 +95,30 @@ export const appRouter = t.router({
   }),
   auth: t.router({
     session: publicProcedure.query(async ({ ctx }) => getSessionUser(ctx.db, ctx.request)),
+    signIn: publicProcedure.input(z.object({
+      email: z.string().trim().email().max(254),
+      password: z.string().min(1).max(200),
+    }).strict()).mutation(async ({ ctx, input }) => {
+      const email = normalizeEmail(input.email);
+      const rows = await ctx.db.select().from(members).where(eq(members.email, email)).limit(1);
+      const member = rows[0];
+      const stale = { message: "That email and password combination doesn't match an account. Try again or reset your password." };
+      // Constant-work path: unknown emails, passwordless members and paused
+      // members all verify against a precomputed dummy hash, so the uniform
+      // error is not paired with a distinguishable (skipped) PBKDF2 latency.
+      const storedHash = member && member.status !== "paused" ? member.passwordHash : undefined;
+      const valid = await verifyPasswordForSignIn(input.password, storedHash);
+      if (!member || !storedHash || !valid) throw new TRPCError({ code: "UNAUTHORIZED", message: stale.message });
+      const sessionToken = createOpaqueToken();
+      await ctx.db.insert(sessions).values({
+        id: crypto.randomUUID(),
+        tokenHash: await hashAuthToken(sessionToken),
+        memberId: member.id,
+        expiresAt: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000),
+      });
+      ctx.responseHeaders.set("set-cookie", sessionCookie(sessionToken, ctx.request, ctx.env));
+      return { success: true as const, name: member.name };
+    }),
     requestLink: publicProcedure.input(z.object({ email: z.string().trim().email().max(254) }).strict()).mutation(async ({ ctx, input }) => {
       if (!ctx.env.EMAIL || !ctx.env.EMAIL_FROM) {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Email sending is unavailable: configure EMAIL_FROM and the Cloudflare EMAIL binding. No sign-in link was sent." });
@@ -118,21 +141,40 @@ export const appRouter = t.router({
     join: publicProcedure.input(z.object({
       name: z.string().trim().min(1).max(120), email: z.string().trim().email().max(254), experience: textList,
       interests: textList, major: shortText(200).optional(), career: shortText(200).optional(), interestAnswer: shortText(2000).optional(),
-      newsletterConsent: z.boolean(), turnstileToken: z.string().max(4096).optional(),
+      password: z.string().optional(), newsletterConsent: z.boolean(), turnstileToken: z.string().max(4096).optional(),
     }).strict()).mutation(async ({ ctx, input }) => {
       await verifyTurnstile(ctx.env, input.turnstileToken);
-      if (!ctx.env.EMAIL || !ctx.env.EMAIL_FROM) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Applications require verified email ownership, but email sending is not configured. No application was submitted." });
+      if (input.password !== undefined && !passwordIsAcceptable(input.password)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Choose a password of at least 8 characters." });
+      }
+      // A password lets the applicant sign in immediately but does NOT prove
+      // ownership of the email. Only magic-link verification may set
+      // emailVerifiedAt. The CONFLICT risk (someone who knows a person's email
+      // can pre-claim it before the real owner applies, locking them out) is
+      // accepted for this demo because staff approval gates all discovery and
+      // directory visibility; see REVIEW.md finding H2.
+      const passwordHash = input.password !== undefined ? await hashPassword(input.password) : null;
+      const needsEmailVerification = !ctx.env.EMAIL || !ctx.env.EMAIL_FROM;
+      if (needsEmailVerification && passwordHash === null) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Applications require a password or verified email ownership. Email sending is not configured, so please choose a password to continue." });
       }
       const email = normalizeEmail(input.email);
       const existing = await ctx.db.select({ id: members.id }).from(members).where(eq(members.email, email)).limit(1);
-      if (existing.length) throw new TRPCError({ code: "CONFLICT", message: "An application already exists for this email. Request a sign-in link instead." });
+      if (existing.length) throw new TRPCError({ code: "CONFLICT", message: "An application already exists for this email. Sign in instead, or request a sign-in link." });
       const id = crypto.randomUUID();
       await ctx.db.insert(members).values({
         id, name: input.name, email, experience: input.experience, interests: input.interests,
         major: input.major ?? "", career: input.career ?? "", interestAnswer: input.interestAnswer ?? "",
-        newsletterConsent: input.newsletterConsent ? "subscribed" : "unsubscribed", status: "pending",
+        passwordHash,
+        newsletterConsent: input.newsletterConsent ? "subscribed" : "unsubscribed",
+        status: "pending",
+        emailVerifiedAt: null,
       });
+      if (passwordHash !== null) {
+        // Password accounts sign in directly with an unverified email; staff
+        // approval remains the discovery gate.
+        return { id, message: "Application saved. You can now sign in with your email and password." };
+      }
       try { await sendMagicLink(ctx.db, ctx.env, ctx.request, email); }
       catch (error) {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: `${error instanceof Error ? error.message : "Email delivery failed."} Your application remains pending; request a new link after delivery is configured.` });
@@ -188,8 +230,9 @@ export const appRouter = t.router({
       return rows.map((row) => toMember(row, true));
     }),
     approveMember: coordinatorProcedure.input(z.object({ id: z.string().max(64), status: z.enum(["approved", "paused"]) }).strict()).mutation(async ({ ctx, input }) => {
-      const rows = await ctx.db.update(members).set({ status: input.status, updatedAt: new Date() }).where(eq(members.id, input.id)).returning({ id: members.id });
+      const rows = await ctx.db.update(members).set({ status: input.status, updatedAt: new Date() }).where(eq(members.id, input.id)).returning({ id: members.id, name: members.name });
       if (!rows.length) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found." });
+      await ctx.db.insert(auditEvents).values({ id: crypto.randomUUID(), actorName: ctx.user.name, action: `membership.${input.status}`, summary: `${input.status === "approved" ? "Approved" : "Paused"} ${rows[0].name}` });
       return { success: true as const };
     }),
     matches: coordinatorProcedure.query(async ({ ctx }) => listMatches(ctx.db, ctx.user, true)),
@@ -199,8 +242,9 @@ export const appRouter = t.router({
       if (!canCoordinatorApprove(existing[0].status)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "This match is not awaiting coordinator approval." });
       }
-      const rows = await ctx.db.update(matches).set({ status: input.approve ? "active" : "declined", updatedAt: new Date() }).where(eq(matches.id, input.id)).returning({ id: matches.id });
-      if (!rows.length) throw new TRPCError({ code: "NOT_FOUND", message: "Match not found." });
+      const updated = await ctx.db.update(matches).set({ status: input.approve ? "active" : "declined", updatedAt: new Date() }).where(and(eq(matches.id, input.id), eq(matches.status, "awaiting-coordinator"))).returning({ id: matches.id });
+      if (!updated.length) throw new TRPCError({ code: "NOT_FOUND", message: "Match not found or already reviewed." });
+      await ctx.db.insert(auditEvents).values({ id: crypto.randomUUID(), actorName: ctx.user.name, action: input.approve ? "match.approved" : "match.declined", summary: `${input.approve ? "Approved" : "Declined"} match ${input.id}` });
       const all = await listMatches(ctx.db, ctx.user, true);
       return all.find((match) => match.id === input.id)!;
     }),
@@ -212,22 +256,35 @@ export const appRouter = t.router({
         ? await ctx.db.update(events).set(values).where(eq(events.id, input.id)).returning()
         : await ctx.db.insert(events).values({ ...values, id: crypto.randomUUID() }).returning();
       if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "Event not found." });
+      await ctx.db.insert(auditEvents).values({ id: crypto.randomUUID(), actorName: ctx.user.name, action: "event.saved", summary: `${input.id ? "Updated" : "Created"} event "${input.title}"` });
       return toEvent(rows[0]);
     }),
   }),
   imports: t.router({
     preview: coordinatorProcedure.input(z.object({ csv: z.string().min(1).max(1_000_000) }).strict()).mutation(async ({ ctx, input }) => previewImport(ctx.db, ctx.user.id, input.csv)),
-    commit: coordinatorProcedure.input(z.object({ token: z.string().min(20).max(256) }).strict()).mutation(async ({ ctx, input }) => commitImport(ctx.db, ctx.user.id, input.token)),
+    commit: coordinatorProcedure.input(z.object({ token: z.string().min(20).max(256) }).strict()).mutation(async ({ ctx, input }) => {
+      const result = await commitImport(ctx.db, ctx.user.id, input.token);
+      await ctx.db.insert(auditEvents).values({ id: crypto.randomUUID(), actorName: ctx.user.name, action: "import.committed", summary: `Imported ${result.imported} members (${result.duplicates} duplicates skipped)` });
+      return result;
+    }),
   }),
   content: t.router({
     state: editorProcedure.query(async ({ ctx }) => getContentState(ctx.db)),
-    save: editorProcedure.input(z.object({ document: siteDocumentSchema, baseVersion }).strict()).mutation(async ({ ctx, input }) => saveContent(ctx.db, input.document, input.baseVersion)),
+    save: editorProcedure.input(z.object({ document: siteDocumentSchema, baseVersion }).strict()).mutation(async ({ ctx, input }) => {
+      const result = await saveContent(ctx.db, input.document, input.baseVersion);
+      await ctx.db.insert(auditEvents).values({ id: crypto.randomUUID(), actorName: ctx.user.name, action: "content.saved", summary: `Saved draft version ${result.draft.version}` });
+      return result;
+    }),
     suggest: editorProcedure.input(z.object({ prompt: z.string().trim().min(1).max(2000), sectionId: z.string().max(64).optional(), baseVersion }).strict()).mutation(async ({ ctx, input }) => {
       const current = await getContentState(ctx.db);
       if (current.draft.version !== input.baseVersion) throw new TRPCError({ code: "CONFLICT", message: "Content changed. Reload before requesting an AI suggestion." });
       return suggestContent(ctx.env.AI, current.draft, input.prompt, input.sectionId);
     }),
-    publish: editorProcedure.input(z.object({ baseVersion }).strict()).mutation(async ({ ctx, input }) => publishContent(ctx.db, input.baseVersion)),
+    publish: editorProcedure.input(z.object({ baseVersion }).strict()).mutation(async ({ ctx, input }) => {
+      const result = await publishContent(ctx.db, input.baseVersion);
+      await ctx.db.insert(auditEvents).values({ id: crypto.randomUUID(), actorName: ctx.user.name, action: "content.published", summary: `Published site version ${result.published.version}` });
+      return result;
+    }),
     rollback: editorProcedure.input(z.object({ revisionId: z.string().max(64), baseVersion }).strict()).mutation(async ({ ctx, input }) => rollbackContent(ctx.db, input.revisionId, input.baseVersion)),
   }),
   mailing: t.router({
@@ -253,6 +310,53 @@ export const appRouter = t.router({
       return { csv: ["name,email", ...rows.map((row) => `${cell(row.name)},${cell(row.email)}`)].join("\r\n"), count: rows.length };
     }),
   }),
+  directory: t.router({
+    list: authedProcedure.query(async ({ ctx }) => {
+      // Opt-in professional directory. Contact details, bios and availability
+      // stay private; only discoverable members who share a participation role
+      // appear, and each viewer sees the same public-safe fields.
+      const viewerHasRole = ctx.user.role !== "member";
+      const rows = await ctx.db
+        .select({
+          id: members.id, name: members.name, headline: members.headline,
+          expertise: members.expertise, goals: members.goals, interests: members.interests,
+          meetingFormat: members.meetingFormat, location: members.location,
+          timezone: members.timezone, participation: members.participation, capacity: members.capacity,
+        })
+        .from(members)
+        .where(and(eq(members.discoverable, true), eq(members.status, "approved"), viewerHasRole ? undefined : isNotViewer(ctx.user.id)))
+        .orderBy(members.name);
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        headline: row.headline,
+        expertise: row.expertise,
+        goals: row.goals,
+        interests: row.interests,
+        meetingFormat: row.meetingFormat,
+        location: row.location,
+        timezone: row.timezone,
+        participation: row.participation,
+      }));
+    }),
+  }),
+  audit: t.router({
+    list: staffProcedure(["admin"]).query(async ({ ctx }) => {
+      const rows = await ctx.db.select().from(auditEvents).orderBy(desc(auditEvents.createdAt)).limit(200);
+      return rows.map((row) => ({
+        id: row.id,
+        actorName: row.actorName,
+        action: row.action,
+        summary: row.summary,
+        createdAt: row.createdAt.toISOString(),
+      }));
+    }),
+  }),
 });
+
+/** Exclude the viewer from their own directory listing without breaking null checks. */
+function isNotViewer(viewerId: string) {
+  return sql`${members.id} <> ${viewerId}`;
+}
 
 export type AppRouter = typeof appRouter;

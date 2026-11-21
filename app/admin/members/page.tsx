@@ -87,7 +87,11 @@ export default function AdminMembersPage() {
     setFailure("");
     try {
       await mutate<{ success: true }>("admin.approveMember", { id: member.id, status });
-      setNotice(`${member.name} is now ${formatMemberStatus(status)}.`);
+      setNotice(
+        status === "approved"
+          ? `Member approved: ${member.name}.`
+          : `Member paused: ${member.name}.`,
+      );
       setReloadKey((key) => key + 1);
     } catch (error) {
       setFailure(safeErrorText(error));
@@ -146,15 +150,19 @@ export default function AdminMembersPage() {
         </div>
       ) : null}
 
-      {notice ? (
-        <p
-          className="m-0 mb-4 rounded-[6px] border border-[#B7C9A8] bg-[#F2F8EC] px-4 py-3 text-[0.92rem] text-[#37522B]"
-          role="status"
-          aria-live="polite"
-        >
-          {notice}
-        </p>
-      ) : null}
+      {/* Always mounted so a screen reader announces later mutation confirmations. */}
+      <p
+        className={
+          notice
+            ? "m-0 mb-4 rounded-[6px] border border-[#B7C9A8] bg-[#F2F8EC] px-4 py-3 text-[0.92rem] text-[#37522B]"
+            : "sr-only"
+        }
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {notice}
+      </p>
       {failure ? (
         <div className="mb-4" aria-live="assertive">
           <ErrorNotice message={failure} />

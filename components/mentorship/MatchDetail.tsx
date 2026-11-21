@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Download, ExternalLink, Pause } from "lucide-react";
+import { ArrowLeft, CalendarPlus, CheckCircle2, Download, ExternalLink, Pause } from "lucide-react";
 import { mutate, useQuery, useSession } from "@/lib/api";
 import type { Checkin, Match } from "@/lib/contracts";
 import { Badge, Button, Card, EmptyState, ErrorNotice, Loading, PageHeading } from "@/components/ui";
 import { actionLink, card, eyebrow, focusRing, input, label, shell } from "./styles";
 import {
+  buildGoogleCalendarUrl,
   buildMatchIcs,
   fromDateTimeLocal,
   matchNextStep,
@@ -23,6 +24,29 @@ interface UpdateInput {
   nextMeeting?: string;
   meetingUrl?: string;
   status?: "paused" | "completed";
+}
+
+/**
+ * One polite live region that stays mounted before any mutation. Screen
+ * readers reliably announce text inserted into an existing live region, but
+ * often miss a region created at the same moment its text appears. Every
+ * mutation here writes its success OR failure message to this single region.
+ */
+export function StatusNotice({ message }: { message: string | null }) {
+  return (
+    <p
+      aria-atomic="true"
+      aria-live="polite"
+      className={
+        message
+          ? "m-0 rounded-[10px] bg-[#FFF4E8] px-4 py-3 text-[0.92rem] leading-[1.6] text-[#6B4A31]"
+          : "sr-only"
+      }
+      role="status"
+    >
+      {message}
+    </p>
+  );
 }
 
 export function MatchDetail({ id }: { id: string }) {
@@ -170,11 +194,7 @@ export function MatchDetail({ id }: { id: string }) {
           />
         </header>
 
-        {notice ? (
-          <p aria-live="polite" className="m-0 rounded-[10px] bg-[#FFF4E8] px-4 py-3 text-[0.92rem] leading-[1.6] text-[#6B4A31]" role="status">
-            {notice}
-          </p>
-        ) : null}
+        <StatusNotice message={notice} />
 
         {session.loading ? <Loading label="Checking your session…" /> : null}
         {session.error ? (
@@ -276,9 +296,21 @@ export function MatchDetail({ id }: { id: string }) {
                         Save details
                       </Button>
                       {toIcsDate(match.nextMeeting) ? (
-                        <Button disabled={saving} onClick={downloadCalendar} type="button">
-                          <Download aria-hidden="true" className="mr-1.5 inline h-4 w-4" /> Add to calendar
-                        </Button>
+                        <>
+                          <Button disabled={saving} onClick={downloadCalendar} type="button">
+                            <Download aria-hidden="true" className="mr-1.5 inline h-4 w-4" /> Download .ics
+                          </Button>
+                          {buildGoogleCalendarUrl(match) ? (
+                            <a
+                              className={`inline-flex min-h-[44px] items-center rounded-full border border-[#DE6219] px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#C85512] ${focusRing}`}
+                              href={buildGoogleCalendarUrl(match)!}
+                              rel="noopener noreferrer"
+                              target="_blank"
+                            >
+                              <CalendarPlus aria-hidden="true" className="mr-1.5 inline h-4 w-4" /> Google Calendar
+                            </a>
+                          ) : null}
+                        </>
                       ) : null}
                     </div>
                     {safeHttpUrl(match.meetingUrl) ? (

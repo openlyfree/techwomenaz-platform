@@ -1,15 +1,23 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, inArray, notInArray, or } from "drizzle-orm";
 import { appRouter, type Context } from "./router";
 import { openDatabase, type Database } from "./db";
 import { checkins, content, contentRevisions, decisions, events, importBatches, matches, members, newsletterDrafts, sessions } from "./db/schema";
 import { runtimeEnv } from "./env";
-import { hashAuthToken } from "./auth-utils";
+import { hashAuthToken, hashPassword, verifyPassword } from "./auth-utils";
 import { SESSION_COOKIE } from "./auth";
 
 const enabled = Boolean(process.env.DATABASE_URL);
 const describePostgres = enabled ? describe : describe.skip;
 const suffix = crypto.randomUUID().slice(0, 8);
+/** Private synthetic credentials used only by these tests; never real accounts. */
+const TEST_PASSWORD = `Synthetic-Pass-${suffix}-!`;
+const TEST_JOIN_PASSWORD = `Synthetic-Join-${suffix}-!`;
+const BOOTSTRAP_PASSWORD = `Synthetic-Bootstrap-${suffix}-!`;
+const joinPwEmail = `joinpw-${suffix}@example.invalid`;
+const bootstrapEmail = `bootstrap-${suffix}@example.invalid`;
 const ids = {
   mentor: `test-mentor-${suffix}`,
   mentee: `test-mentee-${suffix}`,
@@ -20,6 +28,8 @@ const ids = {
   subjectMentor: `test-subject-mentor-${suffix}`,
   subjectMentee: `test-subject-mentee-${suffix}`,
   signout: `test-signout-${suffix}`,
+  pwMember: `test-pw-member-${suffix}`,
+  pwPaused: `test-pw-paused-${suffix}`,
 };
 const tokens = Object.fromEntries(
   Object.keys(ids).map((key) => [key, crypto.randomUUID()]),
@@ -37,9 +47,29 @@ function caller(as: keyof typeof ids | null = null, responseHeaders = new Header
   return appRouter.createCaller(ctx);
 }
 
+/** Rebuild a caller from a cookie issued by signIn to prove the session works. */
+function callerWithCookie(cookieValue: string) {
+  const request = new Request("http://localhost/api/trpc", { headers: { cookie: `${SESSION_COOKIE}=${cookieValue}` } });
+  const ctx: Context = { db, env: runtimeEnv(), request, responseHeaders: new Headers() };
+  return appRouter.createCaller(ctx);
+}
+
+/** Capture the tRPC code and message so error parity (no enumeration) can be asserted. */
+async function signInFailure(email: string, password: string): Promise<{ code: string; message: string }> {
+  try {
+    await caller().auth.signIn({ email, password });
+  } catch (error) {
+    const failure = error as { code?: string; message?: string };
+    if (typeof failure.code === "string") return { code: failure.code, message: failure.message ?? "" };
+    throw error;
+  }
+  throw new Error("Expected auth.signIn to reject the supplied credentials");
+}
+
 describePostgres("PostgreSQL-backed contracted procedures", () => {
   beforeAll(async () => {
     ({ db, close } = await openDatabase(runtimeEnv()));
+    const testPasswordHash = await hashPassword(TEST_PASSWORD);
     await db.insert(members).values([
       { id: ids.mentor, email: `${ids.mentor}@example.invalid`, name: "[synthetic test] Mentor", role: "member", participation: "mentor", status: "approved", availability: [{ day: 2, start: "17:00", end: "18:00" }], timezone: "America/Phoenix", meetingFormat: "either", goals: ["Learning AI"], expertise: ["Security"], capacity: 2, discoverable: true },
       { id: ids.mentee, email: `${ids.mentee}@example.invalid`, name: "[synthetic test] Mentee", role: "member", participation: "mentee", status: "approved", availability: [{ day: 2, start: "17:30", end: "18:30" }], timezone: "America/Phoenix", meetingFormat: "online", goals: ["Learning AI"], capacity: 1, discoverable: true },
@@ -50,6 +80,8 @@ describePostgres("PostgreSQL-backed contracted procedures", () => {
       { id: ids.subjectMentor, email: `${ids.subjectMentor}@example.invalid`, name: "[synthetic test] Subject Mentor", role: "member", participation: "mentor", status: "approved", availability: [{ day: 2, start: "17:00", end: "18:00" }], timezone: "America/Phoenix", meetingFormat: "either", goals: ["Learning AI"], capacity: 2, discoverable: true },
       { id: ids.subjectMentee, email: `${ids.subjectMentee}@example.invalid`, name: "[synthetic test] Subject Mentee", role: "member", participation: "mentee", status: "approved", availability: [{ day: 2, start: "17:30", end: "18:30" }], timezone: "America/Phoenix", meetingFormat: "online", capacity: 2, discoverable: true },
       { id: ids.signout, email: `${ids.signout}@example.invalid`, name: "[synthetic test] Signout", role: "member", participation: null, status: "approved", discoverable: false },
+      { id: ids.pwMember, email: `${ids.pwMember}@example.invalid`, name: "[synthetic test] Password Member", role: "member", participation: null, status: "approved", discoverable: false, passwordHash: testPasswordHash },
+      { id: ids.pwPaused, email: `${ids.pwPaused}@example.invalid`, name: "[synthetic test] Paused Member", role: "member", participation: null, status: "paused", discoverable: false, passwordHash: testPasswordHash },
     ]);
     const sessionRows = await Promise.all(Object.entries(ids).map(async ([key, memberId]) => ({
       id: `test-session-${key}-${suffix}`,
@@ -69,7 +101,7 @@ describePostgres("PostgreSQL-backed contracted procedures", () => {
     await db.delete(importBatches).where(inArray(importBatches.createdBy, memberIds));
     await db.delete(newsletterDrafts).where(inArray(newsletterDrafts.id, createdDraftIds.length ? createdDraftIds : ["none"]));
     await db.delete(events).where(inArray(events.id, createdEventIds.length ? createdEventIds : ["none"]));
-    await db.delete(members).where(eq(members.email, `import-${suffix}@example.invalid`));
+    await db.delete(members).where(inArray(members.email, [`import-${suffix}@example.invalid`, joinPwEmail, bootstrapEmail]));
     await db.delete(sessions).where(inArray(sessions.memberId, memberIds));
     await db.delete(members).where(inArray(members.id, memberIds));
     await close();
@@ -298,5 +330,92 @@ describePostgres("PostgreSQL-backed contracted procedures", () => {
       body: "[synthetic test] body", updatedAt: expect.any(String),
     }));
     expect((await caller("admin").mailing.drafts()).some((item) => item.id === draft.id)).toBe(true);
+  });
+
+  it("auth.signIn accepts valid password credentials and issues a usable session cookie", async () => {
+    const responseHeaders = new Headers();
+    const result = await caller(null, responseHeaders).auth.signIn({
+      email: `${ids.pwMember}@example.invalid`,
+      password: TEST_PASSWORD,
+    });
+    expect(result).toEqual({ success: true, name: "[synthetic test] Password Member" });
+    const cookie = responseHeaders.get("set-cookie") ?? "";
+    expect(cookie).toContain(`${SESSION_COOKIE}=`);
+    for (const part of ["Path=/", "HttpOnly", "SameSite=Lax", "Max-Age="]) {
+      expect(cookie).toContain(part);
+    }
+    const token = new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(cookie)?.[1];
+    expect(token).toBeTruthy();
+    expect((await callerWithCookie(token!).auth.session())?.id).toBe(ids.pwMember);
+  });
+
+  it("auth.signIn does not disclose whether the email, password or hash exists", async () => {
+    const wrongPassword = await signInFailure(`${ids.pwMember}@example.invalid`, "definitely-wrong-password");
+    const unknownEmail = await signInFailure(`absent-${suffix}@example.invalid`, TEST_PASSWORD);
+    const noPasswordHash = await signInFailure(`${ids.mentor}@example.invalid`, TEST_PASSWORD);
+    for (const failure of [wrongPassword, unknownEmail, noPasswordHash]) {
+      expect(failure.code).toBe("UNAUTHORIZED");
+      expect(failure.message).toBe(wrongPassword.message);
+    }
+    expect(wrongPassword.message).toMatch(/email and password combination/i);
+  });
+
+  it("auth.signIn blocks a paused member even with the correct password", async () => {
+    const paused = await signInFailure(`${ids.pwPaused}@example.invalid`, TEST_PASSWORD);
+    const unknown = await signInFailure(`absent-paused-${suffix}@example.invalid`, TEST_PASSWORD);
+    expect(paused.code).toBe("UNAUTHORIZED");
+    expect(paused.message).toBe(unknown.message);
+    expect(paused.message).not.toMatch(/paused/i);
+  });
+
+  it("membership.join stores only a PBKDF2 hash for a submitted password", async () => {
+    const joined = await caller().membership.join({
+      name: "[synthetic test] Password Joiner",
+      email: joinPwEmail,
+      experience: ["Security"],
+      interests: ["Learning AI"],
+      password: TEST_JOIN_PASSWORD,
+      newsletterConsent: false,
+    });
+    expect(joined).toEqual(expect.objectContaining({
+      id: expect.any(String), message: expect.stringContaining("sign in"),
+    }));
+
+    const rows = await db.select().from(members).where(eq(members.email, joinPwEmail)).limit(1);
+    expect(rows).toHaveLength(1);
+    const stored = rows[0].passwordHash;
+    expect(stored).toMatch(/^pbkdf2\$/);
+    expect(stored).not.toContain(TEST_JOIN_PASSWORD);
+    expect(await verifyPassword(TEST_JOIN_PASSWORD, stored!)).toBe(true);
+    expect(await verifyPassword("not-the-join-password", stored!)).toBe(false);
+
+    const responseHeaders = new Headers();
+    expect(await caller(null, responseHeaders).auth.signIn({ email: joinPwEmail, password: TEST_JOIN_PASSWORD })).toEqual({
+      success: true, name: "[synthetic test] Password Joiner",
+    });
+    expect(responseHeaders.get("set-cookie") ?? "").toContain(`${SESSION_COOKIE}=`);
+  });
+
+  it("scripts/bootstrap.mjs writes a PBKDF2 hash to Postgres and never the plaintext", async () => {
+    const run = promisify(execFile);
+    const args = (password: string) => [
+      "--env-file=.env.local", "scripts/bootstrap.mjs", bootstrapEmail, password,
+      "coordinator", "[synthetic test] Bootstrap Staff",
+    ];
+    await run(process.execPath, args(BOOTSTRAP_PASSWORD), { cwd: process.cwd() });
+    const rows = await db.select().from(members).where(eq(members.email, bootstrapEmail)).limit(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].role).toBe("coordinator");
+    expect(rows[0].status).toBe("approved");
+    expect(rows[0].passwordHash).toMatch(/^pbkdf2\$/);
+    expect(rows[0].passwordHash).not.toContain(BOOTSTRAP_PASSWORD);
+    expect(await verifyPassword(BOOTSTRAP_PASSWORD, rows[0].passwordHash!)).toBe(true);
+
+    // Re-running rotates the salted hash on the same row instead of duplicating it.
+    await run(process.execPath, args(BOOTSTRAP_PASSWORD), { cwd: process.cwd() });
+    const again = await db.select().from(members).where(eq(members.email, bootstrapEmail)).limit(1);
+    expect(again).toHaveLength(1);
+    expect(again[0].id).toBe(rows[0].id);
+    expect(again[0].passwordHash).not.toBe(rows[0].passwordHash);
   });
 });

@@ -12,6 +12,9 @@ const createdAt = "2026-11-01T12:00:00Z";
 const verifiedAt = "2026-11-02T15:30:00Z";
 
 function makeDocument() {
+  // Approved public copy: real TechWomenAZ branding with no fabricated
+  // statistics, testimonials, events, or partner claims. Record-level
+  // member/event/team/partner data stays honestly labeled as fictional.
   return {
     version: 1,
     theme: "desert",
@@ -19,22 +22,22 @@ function makeDocument() {
       {
         id: "hero",
         type: "hero",
-        title: "[synthetic] TechWomenAZ demo site",
-        body: "[synthetic] Placeholder copy for local development only.",
+        title: "TechWomen Arizona",
+        body: "Connecting women across Arizona who build, secure and lead in technology through mentorship, community and real opportunities.",
         enabled: true,
       },
       {
         id: "mission",
         type: "mission",
-        title: "[synthetic] Our mission",
-        body: "[synthetic] Demo content, not published nonprofit copy.",
+        title: "Our mission",
+        body: "TechWomenAZ connects women in technology across Arizona. We pair mentors and mentees, host community events, and create space for students, career changers and seasoned engineers to learn from each other.",
         enabled: true,
       },
       {
         id: "mentorship",
         type: "mentorship",
-        title: "[synthetic] Mentorship",
-        body: "[synthetic] Demo mentorship section.",
+        title: "Mentorship",
+        body: "Set your weekly availability and meeting preferences, browse compatible profiles, and choose your own matches. Mentors and mentees decide together what to work on.",
         enabled: true,
       },
     ],
@@ -48,7 +51,7 @@ export function buildSeedPlan() {
     {
       id: "demo-mentor-001",
       email: "demo.mentor.001@example.invalid",
-      name: "[synthetic] Maya Mentor",
+      name: "[fictional] Maya Mentor",
       role: "member",
       participation: "mentor",
       status: "approved",
@@ -60,14 +63,14 @@ export function buildSeedPlan() {
         { day: 2, start: "17:00", end: "18:00" },
         { day: 4, start: "12:00", end: "13:00" },
       ],
-      headline: "[synthetic] Staff engineer who mentors new developers",
-      bio: "[synthetic] Demo profile used for local development only.",
+      headline: "[fictional] Staff engineer who mentors new developers",
+      bio: "[fictional] Demo profile used for local development only.",
       timezone: "America/Phoenix",
       meetingFormat: "either",
       location: "Phoenix, AZ (synthetic)",
       major: "",
       career: "Staff Software Engineer (synthetic)",
-      interestAnswer: "[synthetic] I joined to give back and explore applied AI.",
+      interestAnswer: "I joined to give back and explore applied AI.",
       capacity: 2,
       discoverable: true,
       aiConsent: false,
@@ -79,7 +82,7 @@ export function buildSeedPlan() {
     {
       id: "demo-mentee-002",
       email: "demo.mentee.002@example.invalid",
-      name: "[synthetic] Jordan Learner",
+      name: "[fictional] Jordan Learner",
       role: "member",
       participation: "mentee",
       status: "approved",
@@ -88,14 +91,14 @@ export function buildSeedPlan() {
       goals: ["Break into tech", "Learn AI tooling"],
       interests: ["Finding a mentor", "Learning AI"],
       availability: [{ day: 2, start: "17:30", end: "18:30" }],
-      headline: "[synthetic] Career changer exploring software engineering",
-      bio: "[synthetic] Demo mentee used to exercise discovery locally.",
+      headline: "[fictional] Career changer exploring software engineering",
+      bio: "[fictional] Demo mentee used to exercise discovery locally.",
       timezone: "America/Phoenix",
       meetingFormat: "online",
       location: "Tucson, AZ (synthetic)",
       major: "Computer Science (synthetic)",
       career: "Student (synthetic)",
-      interestAnswer: "[synthetic] I want a mentor and to meet people in tech.",
+      interestAnswer: "I want a mentor and to meet people in tech.",
       // Two demo matches reference this mentee (one awaiting, one active).
       capacity: 2,
       discoverable: true,
@@ -108,7 +111,7 @@ export function buildSeedPlan() {
     {
       id: "demo-both-003",
       email: "demo.both.003@example.invalid",
-      name: "[synthetic] Sam Both",
+      name: "[fictional] Sam Both",
       role: "member",
       participation: "both",
       status: "approved",
@@ -117,14 +120,14 @@ export function buildSeedPlan() {
       goals: ["Give back", "Find a peer mentor"],
       interests: ["Networking", "Volunteering"],
       availability: [{ day: 3, start: "18:00", end: "19:00" }],
-      headline: "[synthetic] Product lead giving and receiving mentorship",
-      bio: "[synthetic] Demo profile for both mentor and mentee flows.",
+      headline: "[fictional] Product lead giving and receiving mentorship",
+      bio: "[fictional] Demo profile for both mentor and mentee flows.",
       timezone: "America/Los_Angeles",
       meetingFormat: "either",
       location: "Remote (synthetic)",
       major: "",
       career: "Product Lead (synthetic)",
-      interestAnswer: "[synthetic] Looking to volunteer and learn AI.",
+      interestAnswer: "Looking to volunteer and learn AI.",
       capacity: 1,
       discoverable: true,
       aiConsent: false,
@@ -136,7 +139,7 @@ export function buildSeedPlan() {
     {
       id: "demo-pending-004",
       email: "demo.pending.004@example.invalid",
-      name: "[synthetic] Priya Pending",
+      name: "[fictional] Priya Pending",
       role: "member",
       participation: "mentee",
       status: "pending",
@@ -145,14 +148,14 @@ export function buildSeedPlan() {
       goals: ["Learn about security careers"],
       interests: ["Finding a mentor"],
       availability: [{ day: 5, start: "16:00", end: "17:00" }],
-      headline: "[synthetic] Pending applicant awaiting email verification",
-      bio: "[synthetic] Demo pending application.",
+      headline: "[fictional] Pending applicant awaiting email verification",
+      bio: "[fictional] Demo pending application.",
       timezone: "America/Phoenix",
       meetingFormat: "online",
       location: "Phoenix, AZ (synthetic)",
       major: "Information Systems (synthetic)",
       career: "Student (synthetic)",
-      interestAnswer: "[synthetic] Interested in networking and finding a mentor.",
+      interestAnswer: "Interested in networking and finding a mentor.",
       capacity: 1,
       discoverable: false,
       aiConsent: false,
@@ -236,31 +239,23 @@ export function buildSeedPlan() {
   const events = [
     {
       id: "demo-event-001",
-      title: "[synthetic] AI & Career Night",
+      title: "[sample event] Finance Series: Money 101",
       date: "2026-12-10T18:00:00-07:00",
       endDate: null,
-      description: "[synthetic] Demo event for local development only.",
-      location: "Phoenix, AZ (synthetic)",
+      description: "Illustrative event for this prototype. Registration link shown only as an example; confirm current events with the organizers before publishing.",
+      location: "Online via Zoom",
       registerUrl: "https://example.invalid/register",
     },
   ];
 
   const team = [
-    {
-      id: "demo-team-001",
-      name: "[synthetic] Ava Coordinator",
-      role: "Community lead (synthetic)",
-      photo: "",
-    },
+    { id: "demo-team-001", name: "[fictional] Alex Rivera", role: "Community lead", photo: "" },
+    { id: "demo-team-002", name: "[fictional] Dana Chen", role: "Programs chair", photo: "" },
   ];
 
   const partners = [
-    {
-      id: "demo-partner-001",
-      name: "[synthetic] Example Partner",
-      logo: "",
-      url: "https://example.invalid",
-    },
+    { id: "demo-partner-001", name: "[fictional] Desert Ledger Accounting", logo: "", url: "https://example.invalid" },
+    { id: "demo-partner-002", name: "[fictional] Cactus & Code Studio", logo: "", url: "https://example.invalid" },
   ];
 
   return {

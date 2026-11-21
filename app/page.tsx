@@ -1,7 +1,25 @@
 "use client";
 
-import { SitePage } from "@/components/site/SitePage";
+import { Hero } from "@/components/site/Hero";
+import { LandingSections } from "@/components/site/LandingSections";
+import { SiteLoading } from "@/components/site/states";
+import { usePublicSite } from "@/components/site/usePublicSite";
 
 export default function HomePage() {
-  return <SitePage includeAll emptyMessage="The site has not been published yet. Please check back soon." />;
+  const site = usePublicSite();
+
+  if (site.loading) {
+    return <SiteLoading label="Loading the TechWomenAZ experience…" />;
+  }
+
+  const hero = site.data.document.sections.find(
+    (section) => section.type === "hero" && section.enabled,
+  );
+
+  return (
+    <main>
+      <Hero section={hero} />
+      <LandingSections site={site} />
+    </main>
+  );
 }

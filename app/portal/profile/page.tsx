@@ -14,8 +14,10 @@ import {
   PageHeading,
 } from "@/components/ui";
 import {
+  AsyncStatus,
   AvailabilityEditor,
   CheckboxField,
+  FormErrorSummary,
   SelectField,
   TagEditor,
   TextAreaField,
@@ -60,17 +62,17 @@ type Suggestions = {
 export default function ProfilePage() {
   const session = useSession();
   const me = useQuery<Member | null>("membership.me");
-  const [form, setForm] = useState<ProfileInput | null>(null);
+  const [form, setForm] = useState<ProfileInput | null>(() => (me.data ? fromMember(me.data) : null));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [status, setStatus] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
   const [categorizing, setCategorizing] = useState(false);
 
   useEffect(() => {
     if (me.data) {
       setForm(fromMember(me.data));
-      setSaved(false);
+      setStatus(null);
       setErrors({});
     }
   }, [me.data]);
@@ -78,26 +80,30 @@ export default function ProfilePage() {
   const update = <K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) => {
     setForm((current) => (current ? { ...current, [key]: value } : current));
     setErrors((current) => ({ ...current, [key]: "", save: "" }));
-    setSaved(false);
+    setStatus(null);
   };
 
   const categorize = async () => {
     if (!form) return;
     setCategorizing(true);
     setErrors((current) => ({ ...current, categorize: "" }));
+    setStatus(null);
     try {
       const response = await mutate<Suggestions>("membership.categorize", {
         answer: form.interestAnswer,
       });
       setSuggestions(response);
+      setStatus({
+        message: response.notice ?? "Interest categories suggested. Review and add any you want.",
+        tone: "success",
+      });
     } catch (error) {
-      setErrors((current) => ({
-        ...current,
-        categorize: safeError(
-          error,
-          "Interest suggestions are unavailable right now. You can add your own interest tags below.",
-        ),
-      }));
+      const text = safeError(
+        error,
+        "Interest suggestions are unavailable right now. You can add your own interest tags below.",
+      );
+      setErrors((current) => ({ ...current, categorize: text }));
+      setStatus({ message: text, tone: "error" });
     } finally {
       setCategorizing(false);
     }
@@ -114,23 +120,25 @@ export default function ProfilePage() {
     };
     const found = validateProfile(payload);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0) {
+      setStatus(null);
+      return;
+    }
     setSaving(true);
-    setSaved(false);
+    setStatus(null);
     try {
       const updated = await mutate<Member>("membership.updateProfile", payload);
       setForm(fromMember(updated));
       setErrors({});
-      setSaved(true);
+      setStatus({ message: "Profile saved. Your changes are now visible to matching.", tone: "success" });
       await Promise.allSettled([me.refresh(), session.refresh()]);
     } catch (error) {
-      setErrors((current) => ({
-        ...current,
-        save: safeError(
-          error,
-          "We could not save your profile. Check the fields and try again, or contact a coordinator.",
-        ),
-      }));
+      const text = safeError(
+        error,
+        "We could not save your profile. Check the fields and try again, or contact a coordinator.",
+      );
+      setErrors((current) => ({ ...current, save: text }));
+      setStatus({ message: text, tone: "error" });
     } finally {
       setSaving(false);
     }
@@ -188,6 +196,9 @@ export default function ProfilePage() {
     );
   }
 
+  // Form-level notices are announced via AsyncStatus; only field errors go in the summary.
+  const { save: _saveError, categorize: _categorizeError, ...fieldErrors } = errors;
+
   return (
     <main className="min-h-screen bg-[#fbf6ef] px-4 py-8 text-[#1f2a44] sm:px-6">
       <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
@@ -199,12 +210,12 @@ export default function ProfilePage() {
         {me.error ? (
           <ErrorNotice message={safeError(me.error, "Your latest changes could not be refreshed. Your saved profile is shown below.")} />
         ) : null}
-        {errors.save ? <ErrorNotice message={errors.save} /> : null}
-        {saved ? (
-          <p className="m-0 rounded-lg bg-[#eef7ee] p-3 text-sm text-[#2e7d32]" role="status">
-            Profile saved. Your changes are now visible to matching.
-          </p>
-        ) : null}
+        <FormErrorSummary
+          errors={fieldErrors}
+          id="profile-form-errors"
+          fieldIds={{ availability: "slot-start", meetingFormat: "profile-format" }}
+        />
+        <AsyncStatus message={status?.message ?? errors.save} tone={status?.tone ?? "error"} />
 
         <Card>
           <div className="flex flex-col gap-5">

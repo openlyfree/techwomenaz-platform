@@ -4,9 +4,11 @@ import { useState } from "react";
 import { ArrowRight, CheckCircle2, Lock } from "lucide-react";
 import { mutate } from "@/lib/api";
 import { EXPERIENCE_AREAS, INTEREST_AREAS, type JoinInput } from "@/lib/contracts";
-import { Badge, Button, Card, ErrorNotice, PageHeading } from "@/components/ui";
+import { Badge, Button, Card, PageHeading } from "@/components/ui";
 import {
+  AsyncStatus,
   CheckboxField,
+  FormErrorSummary,
   TagEditor,
   TextAreaField,
   TextField,
@@ -68,6 +70,7 @@ export default function JoinPage() {
           <Card>
             <div className="flex flex-col gap-4">
               <CheckCircle2 className="h-10 w-10 text-[#2e7d32]" aria-hidden="true" />
+              <AsyncStatus message={result.message} />
               <h1 className="m-0 text-2xl font-semibold">Application received</h1>
               <p className="m-0 text-base leading-7 text-[#5b6172]">{result.message}</p>
               <p className="m-0 text-sm leading-6 text-[#5b6172]">
@@ -86,6 +89,9 @@ export default function JoinPage() {
     );
   }
 
+  // Server-level submit errors are announced separately; the summary lists field errors only.
+  const { submit: _submitError, ...fieldErrors } = errors;
+
   return (
     <main className="min-h-screen bg-[#fbf6ef] px-4 py-8 text-[#1f2a44] sm:px-6">
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
@@ -99,9 +105,8 @@ export default function JoinPage() {
           <span>{step === 1 ? "About you" : "Interests and consent"}</span>
         </div>
 
-        {errors.submit ? (
-          <ErrorNotice message={errors.submit} />
-        ) : null}
+        <FormErrorSummary errors={fieldErrors} id="join-form-errors" idPrefix="join" />
+        <AsyncStatus message={errors.submit} tone="error" />
 
         <Card>
           {step === 1 ? (
@@ -121,8 +126,18 @@ export default function JoinPage() {
                 value={input.email}
                 onChange={(value) => update("email", value)}
                 autoComplete="email"
-                hint="Used only for your single-use sign-in link and coordinator updates."
+                hint="Used for your account, coordinator updates and optional newsletters."
                 error={errors.email}
+              />
+              <TextField
+                id="join-password"
+                label="Choose a password"
+                type="password"
+                value={input.password ?? ""}
+                onChange={(value) => update("password", value)}
+                autoComplete="new-password"
+                hint="At least 8 characters. Lets you sign in right away — no email link required. You can change it later."
+                error={errors.password}
               />
               <TagEditor
                 id="join-experience"
@@ -131,8 +146,8 @@ export default function JoinPage() {
                 onChange={(values) => update("experience", values)}
                 suggestions={EXPERIENCE_AREAS}
                 hint="Choose all that apply. Select Other if none fit."
+                error={errors.experience}
               />
-              {errors.experience ? <p className="text-xs text-[#b3261e]" role="alert">{errors.experience}</p> : null}
               <div className="grid gap-5 sm:grid-cols-2">
                 <TextField
                   id="join-major"
@@ -164,6 +179,7 @@ export default function JoinPage() {
                 onChange={(values) => update("interests", values)}
                 suggestions={INTEREST_AREAS}
                 hint="Pick suggested areas or add your own. These are editable later."
+                error={errors.interests}
               />
               <TextAreaField
                 id="join-interest-answer"
@@ -173,7 +189,6 @@ export default function JoinPage() {
                 placeholder="For example: find a mentor, learn AI, or meet peers in my field."
                 hint="Free-text answers help us suggest categories. Suggestions never subscribe you to email or change your application status."
               />
-              {errors.interests ? <p className="text-xs text-[#b3261e]" role="alert">{errors.interests}</p> : null}
               <CheckboxField
                 id="join-newsletter"
                 label="Email me the occasional newsletter"
