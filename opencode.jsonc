@@ -1,6 +1,15 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "openrouter/tencent/hy4-flash",
+  "providers": {
+    "openrouter": {
+      "models": {
+        "moonshotai/kimi-k3.1-pro": {
+          "limit": { "output": 48000 }
+        }
+      }
+    }
+  },
   "permissions": [
     { "action": "*", "resource": "*", "effect": "allow" },
     { "action": "subagent", "resource": "*", "effect": "deny" }

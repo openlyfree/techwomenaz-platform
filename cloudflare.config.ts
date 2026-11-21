@@ -1,4 +1,7 @@
 import { bindings, defineConfig, defineWorker } from "cf/config";
+import { config as loadLocalEnv } from "dotenv";
+
+loadLocalEnv({ path: ".env.local", quiet: true });
 
 export default defineConfig({
   worker: defineWorker({
@@ -13,6 +16,20 @@ export default defineConfig({
     },
     env: {
       ASSETS: bindings.assets(),
+      HYPERDRIVE: bindings.hyperdrive({
+        id: "db919459750842bba0449de7adfa0c5a",
+        dev: { connectionString: process.env.DATABASE_URL },
+      }),
+      AI: bindings.ai(),
+      REQUIRE_MATCH_APPROVAL: bindings.text("true"),
+      DEMO_MODE: bindings.text("true"),
+    },
+    workersDev: true,
+    previewUrls: true,
+    observability: {
+      enabled: true,
+      logs: { enabled: true },
+      traces: { enabled: true, headSamplingRate: 0.25 },
     },
   }),
 });

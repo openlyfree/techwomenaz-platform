@@ -27,3 +27,4 @@ playwright-report/
 opencode.local.jsonc
 neon.ts
 .neon
+coverage/
