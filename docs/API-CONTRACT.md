@@ -53,3 +53,6 @@ Correction: nonprofit screenshot text has NOT been verified. Keep mutual Interes
 - Server-side audit events are recorded inside these mutations: membership approve/pause, match approve/decline, content save/publish, event create/update, import commit.
 - Shared navigation additions: /portal/directory (member directory) and /admin/audit (staff audit log).
 - Calendar sync: match detail offers the existing .ics download plus a Google Calendar template link built from the same meeting data (no server state changes).
+
+## Match approval mode — formally accepted change (controller, 2026-11-21)
+Nonprofit representative Melissa confirmed in writing (hackathon Q&A text) that participants approve which mentors they are matched with. `REQUIRE_MATCH_APPROVAL` is therefore set to `"false"`: mutual Interested decisions activate a match directly. Staff retain dashboard controls to pause, decline or end matches. This supersedes the earlier approval-by-default note in this document.

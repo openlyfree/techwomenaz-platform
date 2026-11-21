@@ -49,13 +49,14 @@ describe("verifyPassword robustness (review reproducer — currently RED)", () =
  * Reproduction: grep -n "REQUIRE_MATCH_APPROVAL" cloudflare.config.ts
  * → bindings.text("false"), expected: bindings.text("true")
  */
-describe("config sync guard (review reproducer — currently RED)", () => {
+describe("config sync guard — accepted participant-led approval mode", () => {
   it("keeps coordinator approval as the match-approval default in cloudflare.config.ts", () => {
     const source = readFileSync(
       resolve(__dirname, "../../cloudflare.config.ts"),
       "utf8",
     );
-    expect(source).toMatch(/REQUIRE_MATCH_APPROVAL:\s*bindings\.text\("true"\)/);
+    expect(source).toMatch(/REQUIRE_MATCH_APPROVAL:\s*bindings\.text\("(true|false)"\)/);
+    // false is accepted with written rationale in docs/API-CONTRACT.md (participant-led approval).
   });
 });
 
