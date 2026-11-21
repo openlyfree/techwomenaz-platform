@@ -5,30 +5,41 @@ import { useScrollProgress } from "./useScrollProgress";
 import "./desert-backdrop.css";
 
 export interface DesertBackdropProps {
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
 }
 
 /**
- * Maximum upward travel, in px, for each stacked layer over one hero-scroll.
- * Single source of truth: applied as an inline `--layer-travel` custom property
- * and mirrored as fallbacks in desert-backdrop.css.
- * Far layers travel least; foreground/cacti travel most.
+ * Maximum upward travel, in px, for each stacked layer over the whole document
+ * scroll. Single source of truth: mirrored as fallbacks in desert-backdrop.css.
+ * Sky/sun move least; foreground/cacti travel most.
  */
 export const DESERT_LAYER_TRAVEL = {
   frame: 0,
-  sky: 8,
-  sun: 12,
-  far: 40,
-  mid: 70,
-  near: 100,
-  foreground: 130,
-  cacti: 140,
+  sky: 20,
+  sun: 45,
+  far: 140,
+  mid: 240,
+  near: 340,
+  foreground: 440,
+  cacti: 520,
+} as const;
+
+/** Leftward horizontal drift, in px at full document scroll (D3). */
+export const DESERT_LAYER_DRIFT = {
+  frame: 0,
+  sky: 0,
+  sun: 0,
+  far: 0,
+  mid: 0,
+  near: 0,
+  foreground: 24,
+  cacti: 36,
 } as const;
 
 export type DesertLayerName = keyof typeof DESERT_LAYER_TRAVEL;
 
-// Exact path data from docs/LANDING-MISSION.md (the original hero-art SVG).
+// Exact path data, fills, gradient and cacti shapes from docs/LANDING-MISSION.md (FROZEN).
 const ARCH_CLIP = "M10 465 V190 A170 170 0 0 1 350 190 V465 Z";
 const ARCH_OUTLINE = "M2 470 V190 A178 178 0 0 1 358 190 V470";
 
@@ -55,7 +66,10 @@ const RIDGES: ReadonlyArray<{ name: DesertLayerName; fill: string; d: string }> 
   },
 ];
 
-type LayerStyle = CSSProperties & { "--layer-travel": number };
+type LayerStyle = CSSProperties & {
+  "--layer-travel": number;
+  "--layer-drift": number;
+};
 
 interface LayerProps {
   name: DesertLayerName;
@@ -63,9 +77,15 @@ interface LayerProps {
   children: ReactNode;
 }
 
+function layerStyle(name: DesertLayerName): LayerStyle {
+  return {
+    "--layer-travel": DESERT_LAYER_TRAVEL[name],
+    "--layer-drift": DESERT_LAYER_DRIFT[name],
+  };
+}
+
 /** A single, full-bleed parallax SVG layer (except `frame`, which holds the defs). */
 function Layer({ name, clipId, children }: LayerProps) {
-  const style: LayerStyle = { "--layer-travel": DESERT_LAYER_TRAVEL[name] };
   return (
     <svg
       className={`twaz-desert__layer twaz-desert__layer--${name}`}
@@ -73,7 +93,7 @@ function Layer({ name, clipId, children }: LayerProps) {
       viewBox="0 0 360 470"
       preserveAspectRatio="none"
       focusable="false"
-      style={style}
+      style={layerStyle(name)}
     >
       <g clipPath={`url(#${clipId})`}>{children}</g>
     </svg>
@@ -81,31 +101,31 @@ function Layer({ name, clipId, children }: LayerProps) {
 }
 
 /**
- * Full-bleed TechWomenAZ desert landscape rendered behind `children`.
- * Parallax is driven entirely by `useScrollProgress()` writing `--progress`
- * to the document root; this component never re-renders on scroll.
+ * Fixed, full-viewport TechWomenAZ desert landscape. Scene-only render: no
+ * content wrapper, so page content stacks above via `relative z-[1]`.
+ * Parallax is driven entirely by `useScrollProgress()` writing `--progress` to
+ * the document root; this component never re-renders on scroll.
  */
-export function DesertBackdrop({ children, className }: DesertBackdropProps) {
+export function DesertBackdrop({ className }: DesertBackdropProps) {
   useScrollProgress();
 
-  // Unique per-instance ids keep the clipped layers valid when the backdrop
-  // is rendered more than once (e.g. preview + published views).
+  // Unique per-instance ids keep the clipped layers valid if the backdrop is
+  // rendered more than once.
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const clipId = `twaz-arch-${uid}`;
   const skyId = `twaz-sky-${uid}`;
-  const frameStyle: LayerStyle = { "--layer-travel": DESERT_LAYER_TRAVEL.frame };
 
   return (
-    <div className={className ? `twaz-desert ${className}` : "twaz-desert"}>
-      <div className="twaz-desert__scene" aria-hidden="true">
-        {/* Static frame + shared definitions. */}
+    <div className={className ? `twaz-desert ${className}` : "twaz-desert"} aria-hidden="true">
+      <div className="twaz-desert__scene">
+        {/* Static frame + shared definitions (no travel). */}
         <svg
           className="twaz-desert__layer twaz-desert__layer--frame"
           data-desert-layer="frame"
           viewBox="0 0 360 470"
           preserveAspectRatio="none"
           focusable="false"
-          style={frameStyle}
+          style={layerStyle("frame")}
         >
           <defs>
             <clipPath id={clipId}>
@@ -151,7 +171,6 @@ export function DesertBackdrop({ children, className }: DesertBackdropProps) {
           </g>
         </Layer>
       </div>
-      <div className="twaz-desert__content">{children}</div>
     </div>
   );
 }
