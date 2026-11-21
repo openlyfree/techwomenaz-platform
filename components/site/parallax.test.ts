@@ -1,15 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Unit tests for the frozen scroll-hook contract (docs/PARALLAX-DECISIONS.md
- * D4, per docs/PARALLAX-FIX-MISSION.md):
+ * Unit tests for the frozen scroll-hook contract (docs/LANDING-MISSION.md):
  *
  *   useScrollProgress(): { scrollY: number; progress: number }
  *   - passive scroll listener + requestAnimationFrame
- *   - progress spans the WHOLE document:
- *       range = documentElement.scrollHeight - window.innerHeight
- *     (mock document: scrollHeight 2400, innerHeight 800 -> range 1600) —
- *     not just the first viewport, so the terrain keeps moving on every screen
  *   - per-frame values are written to CSS custom properties (`--scroll-y`,
  *     `--progress`) on the document root — never to React state, so scrolling
  *     must not re-render the tree
@@ -245,12 +240,6 @@ function lastWrite(name: string): string | undefined {
 /* Pure scroll math (exported for exactly this purpose)                */
 /* ------------------------------------------------------------------ */
 
-/**
- * The mock document spans 2400px with an 800px viewport, so the frozen
- * whole-document scroll range (D4) is 2400 - 800 = 1600px.
- */
-const DOCUMENT_RANGE = 1600;
-
 describe("useScrollProgress math", () => {
   it("clamp01 pins values to [0, 1] and treats non-finite input as 0", () => {
     expect(mod.clamp01(-1)).toBe(0);
@@ -264,16 +253,14 @@ describe("useScrollProgress math", () => {
     expect(mod.clamp01(Number.NEGATIVE_INFINITY)).toBe(0);
   });
 
-  it("computeProgress normalizes scrollY over the whole-document scroll range (D4)", () => {
-    expect(mod.computeProgress(0, DOCUMENT_RANGE)).toBe(0);
-    expect(mod.computeProgress(400, DOCUMENT_RANGE)).toBe(0.25);
-    expect(mod.computeProgress(600, DOCUMENT_RANGE)).toBe(0.375);
-    expect(mod.computeProgress(800, DOCUMENT_RANGE)).toBe(0.5);
-    expect(mod.computeProgress(1600, DOCUMENT_RANGE)).toBe(1);
-    expect(mod.computeProgress(4000, DOCUMENT_RANGE)).toBe(1);
+  it("computeProgress normalizes scrollY over the scroll range and clamps", () => {
+    expect(mod.computeProgress(0, 800)).toBe(0);
+    expect(mod.computeProgress(400, 800)).toBe(0.5);
+    expect(mod.computeProgress(600, 800)).toBe(0.75);
+    expect(mod.computeProgress(5000, 800)).toBe(1);
     expect(mod.computeProgress(100, 0)).toBe(0);
     expect(mod.computeProgress(100, -5)).toBe(0);
-    expect(mod.computeProgress(Number.NaN, DOCUMENT_RANGE)).toBe(0);
+    expect(mod.computeProgress(Number.NaN, 800)).toBe(0);
   });
 });
 
@@ -282,7 +269,7 @@ describe("useScrollProgress math", () => {
 /* ------------------------------------------------------------------ */
 
 describe("useScrollProgress runtime contract", () => {
-  it("returns a live { scrollY, progress } snapshot measured over the whole document (D4)", () => {
+  it("returns a live { scrollY, progress } snapshot measured over the first viewport", () => {
     const runtime = mountHook(() => mod.useScrollProgress());
     env.flushRaf(); // settle the mount-time sample
 
@@ -291,18 +278,12 @@ describe("useScrollProgress runtime contract", () => {
     env.scroll(600);
     env.flushRaf();
     expect(runtime.result.scrollY).toBe(600);
-    // Whole-document range (mock: scrollHeight 2400 - innerHeight 800 = 1600),
-    // NOT the first viewport.
-    expect(runtime.result.progress).toBeCloseTo(0.375, 5);
-
-    env.scroll(1600);
-    env.flushRaf();
-    expect(runtime.result.progress).toBe(1); // full document scrolled
+    expect(runtime.result.progress).toBe(0.75); // 600 / innerHeight(800)
 
     env.scroll(4000);
     env.flushRaf();
     expect(runtime.result.scrollY).toBe(4000);
-    expect(runtime.result.progress).toBe(1); // clamped past the document end
+    expect(runtime.result.progress).toBe(1); // clamped past the hero
   });
 
   it("registers exactly one passive scroll listener", () => {
@@ -335,8 +316,7 @@ describe("useScrollProgress runtime contract", () => {
     expect(recent.filter((w) => w.property === "--scroll-y")).toHaveLength(10);
     expect(recent.filter((w) => w.property === "--progress")).toHaveLength(10);
     expect(lastWrite("--scroll-y")).toBe("1000px");
-    // Whole-document range: 1000 / 1600 = 0.625 (D4).
-    expect(Number(lastWrite("--progress"))).toBeCloseTo(0.625, 5);
+    expect(Number(lastWrite("--progress"))).toBe(1); // 1000/800 clamped
 
     // Three scroll events inside one frame -> still a single scheduled rAF.
     const rafBeforeBurst = env.counts.rafScheduled;

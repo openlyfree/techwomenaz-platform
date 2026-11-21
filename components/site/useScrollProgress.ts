@@ -7,13 +7,19 @@ export interface ScrollProgress {
   progress: number;
 }
 
-/** Clamp a raw value to the inclusive 0..1 range. */
+/**
+ * Clamp a raw value to the inclusive 0..1 range.
+ * Exported so the parallax math can be unit-tested without a DOM.
+ */
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
 }
 
-/** Normalise a scroll offset against the distance being scrolled. */
+/**
+ * Normalise a scroll offset against the distance being scrolled.
+ * A non-positive/invalid range means "no progress yet".
+ */
 export function computeProgress(scrollY: number, scrollRange: number): number {
   if (!Number.isFinite(scrollRange) || scrollRange <= 0) return 0;
   return clamp01(scrollY / scrollRange);
@@ -23,14 +29,12 @@ const SCROLL_Y_VAR = "--scroll-y";
 const PROGRESS_VAR = "--progress";
 
 /**
- * Passive scroll + requestAnimationFrame progress reader for the fixed backdrop.
+ * Passive scroll + requestAnimationFrame progress reader.
  *
- * Progress is measured across the WHOLE document — `scrollY / (scrollHeight -
- * innerHeight)` — so the terrain keeps travelling on every screen, not just the
- * first viewport. Values are written to CSS custom properties on the document
- * root (and to a stable snapshot object that is mutated in place). No React
- * state is set per frame, so scrolling never re-renders the tree; the GPU
- * transforms in desert-backdrop.css read `--progress` directly.
+ * Values are written to CSS custom properties on the document root (and to a
+ * stable snapshot object that is mutated in place). No React state is set per
+ * frame, so scrolling never re-renders the tree — the GPU transforms in
+ * desert-backdrop.css read `--progress` directly.
  */
 export function useScrollProgress(): ScrollProgress {
   const snapshot = useRef<ScrollProgress>({ scrollY: 0, progress: 0 });
@@ -59,10 +63,10 @@ export function useScrollProgress(): ScrollProgress {
 
     const sample = () => {
       frame = 0;
+      // Progress is measured across the first viewport of scroll (the hero),
+      // so the terrain visibly travels as the hero leaves the screen.
       const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
-      // Document-wide range (D4): scrollHeight - innerHeight, guarded at >= 1px.
-      const scrollHeight = document.documentElement.scrollHeight;
-      const range = Math.max(1, scrollHeight - window.innerHeight);
+      const range = Math.max(1, window.innerHeight || 0);
       const progress = computeProgress(scrollY, range);
 
       snapshot.current.scrollY = scrollY;

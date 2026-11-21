@@ -1,14 +1,9 @@
-/* TechWomenAZ fixed, full-viewport desert backdrop — parallax driven by
-   --progress from useScrollProgress (written to :root). No React re-render per
-   scroll frame. */
+/* TechWomenAZ layered desert backdrop — parallax driven by --progress from
+   useScrollProgress (written to :root). No React re-render per scroll frame. */
 
 .twaz-desert {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  position: relative;
   isolation: isolate;
-  overflow: hidden;
   /* Warm fallback so translating layers never reveal a bare page background. */
   background: linear-gradient(180deg, #fce9d8 0%, #f5ae72 55%, #d9611a 100%);
 }
@@ -21,35 +16,33 @@
   z-index: 0;
 }
 
+.twaz-desert__content {
+  position: relative;
+  z-index: 1;
+}
+
 .twaz-desert__layer {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  --layer-drift: 0;
-  /* translate3d only: promotes each layer to its own GPU compositor layer.
-     Vertical travel + leftward drift are combined in one transform. Static
-     fallbacks; the inline values set by DesertBackdrop are authoritative. */
-  transform: translate3d(
-    calc(var(--progress, 0) * var(--layer-drift, 0) * -1px),
-    calc(var(--progress, 0) * var(--layer-travel, 0) * -1px),
-    0
-  );
+  /* translate3d only: promotes each layer to its own GPU compositor layer. */
+  transform: translate3d(0, calc(var(--progress, 0) * var(--layer-travel, 0) * -1px), 0);
   will-change: transform;
   pointer-events: none;
 }
 
-/* Max upward travel / leftward drift per layer (px at full document scroll).
-   Mirrors DESERT_LAYER_TRAVEL / DESERT_LAYER_DRIFT in the component. */
-.twaz-desert__layer--frame      { --layer-travel: 0;   --layer-drift: 0;  }
-.twaz-desert__layer--sky        { --layer-travel: 20;  --layer-drift: 0;  }
-.twaz-desert__layer--sun        { --layer-travel: 45;  --layer-drift: 0;  }
-.twaz-desert__layer--far        { --layer-travel: 140; --layer-drift: 0;  }
-.twaz-desert__layer--mid        { --layer-travel: 240; --layer-drift: 0;  }
-.twaz-desert__layer--near       { --layer-travel: 340; --layer-drift: 0;  }
-.twaz-desert__layer--foreground { --layer-travel: 440; --layer-drift: 24; }
-.twaz-desert__layer--cacti      { --layer-travel: 520; --layer-drift: 36; }
+/* Max upward travel per layer (px). Mirrors DESERT_LAYER_TRAVEL in the
+   component; the inline --layer-travel on each SVG is authoritative. */
+.twaz-desert__layer--frame { --layer-travel: 0;   }
+.twaz-desert__layer--sky    { --layer-travel: 8;   }
+.twaz-desert__layer--sun    { --layer-travel: 12;  }
+.twaz-desert__layer--far    { --layer-travel: 40;  }
+.twaz-desert__layer--mid    { --layer-travel: 70;  }
+.twaz-desert__layer--near   { --layer-travel: 100; }
+.twaz-desert__layer--foreground { --layer-travel: 130; }
+.twaz-desert__layer--cacti  { --layer-travel: 140; }
 
 /* Reduced motion: completely static landscape, no scroll-linked transforms. */
 @media (prefers-reduced-motion: reduce) {
