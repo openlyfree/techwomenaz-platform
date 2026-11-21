@@ -191,7 +191,7 @@ export const appRouter = t.router({
   }),
   mentorship: t.router({
     discover: authedProcedure.input(z.object({ role: z.enum(["mentor", "mentee"]) }).strict()).query(async ({ ctx, input }) => discoverMembers(ctx.db, ctx.env, ctx.user, input.role)),
-    decide: authedProcedure.input(z.object({ candidateId: z.string().max(64), role: z.enum(["mentor", "mentee"]), decision: z.enum(["interested", "pass"]) }).strict()).mutation(async ({ ctx, input }) => decideCandidate(ctx.db, ctx.env, ctx.user, input)),
+    decide: authedProcedure.input(z.object({ candidateId: z.string().max(64), role: z.enum(["mentor", "mentee"]), decision: z.enum(["interested", "pass"]) }).strict()).mutation(async ({ ctx, input }) => decideCandidate(ctx.db, ctx.user, input)),
     matches: authedProcedure.query(async ({ ctx }) => listMatches(ctx.db, ctx.user)),
     updateMatch: authedProcedure.input(z.object({
       id: z.string().max(64), goal: shortText(2000).optional(), nextMeeting: z.string().max(64).refine((value) => !value || !Number.isNaN(Date.parse(value)), "Use a valid meeting date/time.").optional(),

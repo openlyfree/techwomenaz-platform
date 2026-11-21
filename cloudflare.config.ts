@@ -21,9 +21,6 @@ export default defineConfig({
         dev: { connectionString: process.env.DATABASE_URL },
       }),
       AI: bindings.ai(),
-      // Melissa confirmed participants approve who they mentor (screenshot);
-      // mutual interest activates directly. Staff retain pause/decline controls.
-      REQUIRE_MATCH_APPROVAL: bindings.text("false"),
       DEMO_MODE: bindings.text("true"),
     },
     workersDev: true,

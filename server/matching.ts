@@ -11,12 +11,10 @@ import type { StaffRole } from "../lib/contracts";
 export type DesiredRole = "mentor" | "mentee";
 export type DecisionValue = "interested" | "pass";
 
-export function matchStatusForMutualInterest(
-  requireApproval: string | undefined,
-): "awaiting-coordinator" | "active" {
-  // Coordinator approval is the default. Only an explicit "false" opts into
-  // self-directed activation; whitespace and case in env values are tolerated.
-  return requireApproval?.trim().toLowerCase() === "false" ? "active" : "awaiting-coordinator";
+export function matchStatusForMutualInterest(): "active" {
+  // Mutual interest activates a match directly. There is no coordinator
+  // approval gate; staff retain pause/decline controls on active matches.
+  return "active";
 }
 
 /** Only these statuses hold a participant's declared capacity. */

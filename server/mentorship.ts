@@ -166,7 +166,6 @@ export async function discoverMembers(db: Database, env: RuntimeEnv, user: Sessi
 
 export async function decideCandidate(
   db: Database,
-  env: RuntimeEnv,
   user: SessionUser,
   input: { candidateId: string; role: DesiredRole; decision: "interested" | "pass" },
 ): Promise<{ mutual: boolean; matchId?: string }> {
@@ -208,7 +207,7 @@ export async function decideCandidate(
     if (remainingCapacity(actor.capacity, counts.get(actor.id) ?? 0) === 0 || remainingCapacity(candidate.capacity, counts.get(candidate.id) ?? 0) === 0) {
       throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A participant has reached match capacity. No additional match was created." });
     }
-    const inserted = await tx.insert(matches).values({ id: crypto.randomUUID(), mentorId, menteeId, status: matchStatusForMutualInterest(env.REQUIRE_MATCH_APPROVAL) }).returning({ id: matches.id });
+    const inserted = await tx.insert(matches).values({ id: crypto.randomUUID(), mentorId, menteeId, status: matchStatusForMutualInterest() }).returning({ id: matches.id });
     return { mutual: true, matchId: inserted[0].id };
   });
 }

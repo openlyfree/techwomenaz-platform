@@ -37,7 +37,7 @@ export function canSubmitDecision(pending: boolean, decided: boolean): boolean {
   return !pending && !decided;
 }
 
-/** Never claim that mutual interest activated or approved a match. */
+/** Report what the server recorded; the authoritative status lives in My mentorships. */
 export function decisionMessage(mutual: boolean): string {
   return mutual
     ? "Mutual interest recorded. Check My mentorships for the current status."

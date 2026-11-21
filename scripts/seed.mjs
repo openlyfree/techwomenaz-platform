@@ -99,7 +99,7 @@ export function buildSeedPlan() {
       major: "Computer Science (synthetic)",
       career: "Student (synthetic)",
       interestAnswer: "I want a mentor and to meet people in tech.",
-      // Two demo matches reference this mentee (one awaiting, one active).
+      // Two demo matches reference this mentee; both are active (no approval gate).
       capacity: 2,
       discoverable: true,
       aiConsent: false,
@@ -199,7 +199,7 @@ export function buildSeedPlan() {
       id: "demo-match-001",
       mentorId: "demo-mentor-001",
       menteeId: "demo-mentee-002",
-      status: "awaiting-coordinator",
+      status: "active",
       goal: "[synthetic] Explore AI-assisted development",
       nextMeeting: null,
       meetingUrl: "",

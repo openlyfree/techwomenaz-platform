@@ -10,7 +10,7 @@ A plain-language tour of what the platform does today. Written for nonprofit sta
 
 **Your profile.** You control what other members can see: your headline, bio, expertise, goals, timezone, weekly availability, and whether you prefer to meet online, in person, or either. You also say how many mentees or mentors you can take on, and nothing is suggested to you beyond that capacity.
 
-**Finding a match.** Discovery only shows people whose schedules truly overlap with yours in your own timezone, whose meeting format is compatible, and who have room for another match. You choose: **Interested** or **Pass**. Nothing is sent to anyone when you pass, and passes stay private. When you are both interested, a match is created and a coordinator gives it a final look before it becomes active — this keeps the program safe without slowing anyone down.
+**Finding a match.** Discovery only shows people whose schedules truly overlap with yours in your own timezone, whose meeting format is compatible, and who have room for another match. You choose: **Interested** or **Pass**. Nothing is sent to anyone when you pass, and passes stay private. When you are both interested, the match becomes active right away — you decide who you work with. Staff can still pause or end a match later if needed.
 
 **Your relationship.** Each match has a shared goal, a next meeting time, and a meeting link if you use one. After each session you record a quick check-in: did you meet, was it useful, do you want to continue. Your private notes in a check-in are visible only to you — not to the other person, not to other members, not even to administrators.
 
@@ -20,7 +20,7 @@ A plain-language tour of what the platform does today. Written for nonprofit sta
 
 **Imports.** Upload the existing Google Forms spreadsheet as CSV. Every row is previewed first and sorted into new, duplicate or invalid, and committing the same file twice never creates duplicates.
 
-**Mentorship oversight.** See all matches, approve ones that came from mutual interest, and watch overall activity. Approvals only apply to matches that are actually waiting for review.
+**Mentorship oversight.** See all matches and watch overall activity, and pause or end a match if needed. Matches created today are active immediately; the review controls here remain only for older matches already waiting for a staff decision.
 
 **Website editing.** Edit the public site section by section with a preview, publish when ready, or roll back to any earlier version. AI can suggest draft text, but nothing AI touches is published automatically, and AI suggestions cannot insert code or links.
 

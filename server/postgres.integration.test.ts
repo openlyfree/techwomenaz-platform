@@ -107,7 +107,7 @@ describePostgres("PostgreSQL-backed contracted procedures", () => {
     await close();
   });
 
-  it("filters discovery, keeps decisions private, and creates a default awaiting-coordinator mutual match", async () => {
+  it("filters discovery, keeps decisions private, and activates a mutual match without approval", async () => {
     const found = await caller("mentee").mentorship.discover({ role: "mentor" });
     expect(found.cards.some((card) => card.id === ids.mentor)).toBe(true);
     expect(await caller("mentee").mentorship.decide({ candidateId: ids.mentor, role: "mentor", decision: "interested" })).toEqual({ mutual: false });
@@ -117,8 +117,7 @@ describePostgres("PostgreSQL-backed contracted procedures", () => {
     expect(mutual.mutual).toBe(true);
     matchId = mutual.matchId!;
     const relationships = await caller("mentee").mentorship.matches();
-    expect(relationships.find((match) => match.id === matchId)?.status).toBe("awaiting-coordinator");
-    expect((await caller("admin").admin.approveMatch({ id: matchId, approve: true })).status).toBe("active");
+    expect(relationships.find((match) => match.id === matchId)?.status).toBe("active");
   });
 
   it("returns private notes only to their author, including for staff", async () => {

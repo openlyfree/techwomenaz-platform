@@ -38,25 +38,19 @@ describe("verifyPassword robustness (review reproducer — currently RED)", () =
 });
 
 /**
- * REVIEW finding R1 (high): cloudflare.config.ts sets REQUIRE_MATCH_APPROVAL to
- * "false", so mutual-interest matches self-activate without coordinator
- * approval. AGENTS.md and docs/API-CONTRACT.md say coordinator approval is the
- * default ("true") and "false" is allowed only after a verified user
- * instruction — which tw-review has no record of. This guard documents the
- * contract default; flipping the config legitimately requires updating
- * docs/API-CONTRACT.md in the same change.
- *
- * Reproduction: grep -n "REQUIRE_MATCH_APPROVAL" cloudflare.config.ts
- * → bindings.text("false"), expected: bindings.text("true")
+ * Resolution of REVIEW finding R1. A later direct user instruction removed the
+ * match-approval gate entirely: mutual interest now always activates a match,
+ * and the REQUIRE_MATCH_APPROVAL binding no longer exists. The admin approval
+ * screen/procedure are intentionally left in place for legacy records only.
+ * Rationale is recorded in docs/API-CONTRACT.md ("Match approval mode").
  */
-describe("config sync guard — accepted participant-led approval mode", () => {
-  it("keeps coordinator approval as the match-approval default in cloudflare.config.ts", () => {
+describe("config sync guard — match-approval gate removed", () => {
+  it("does not define REQUIRE_MATCH_APPROVAL in cloudflare.config.ts", () => {
     const source = readFileSync(
       resolve(__dirname, "../../cloudflare.config.ts"),
       "utf8",
     );
-    expect(source).toMatch(/REQUIRE_MATCH_APPROVAL:\s*bindings\.text\("(true|false)"\)/);
-    // false is accepted with written rationale in docs/API-CONTRACT.md (participant-led approval).
+    expect(source).not.toMatch(/REQUIRE_MATCH_APPROVAL/);
   });
 });
 

@@ -16,18 +16,8 @@ import {
 } from "./matching";
 
 describe("matching state and privacy", () => {
-  it("uses coordinator review by default", () => {
-    expect(matchStatusForMutualInterest(undefined)).toBe("awaiting-coordinator");
-    expect(matchStatusForMutualInterest("true")).toBe("awaiting-coordinator");
-  });
-
-  it("supports explicitly configured self-directed activation", () => {
-    expect(matchStatusForMutualInterest("false")).toBe("active");
-  });
-
-  it("normalizes whitespace and case in the approval flag (RED: env values are not always canonical)", () => {
-    expect(matchStatusForMutualInterest(" FALSE ")).toBe("active");
-    expect(matchStatusForMutualInterest(" True ")).toBe("awaiting-coordinator");
+  it("activates a mutual-interest match directly, with no approval gate", () => {
+    expect(matchStatusForMutualInterest()).toBe("active");
   });
 
   it("enforces capacity without off-by-one errors", () => {

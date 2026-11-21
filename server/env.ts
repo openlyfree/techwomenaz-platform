@@ -21,7 +21,6 @@ export interface PlatformBindings {
   APP_ORIGIN?: string;
   TYPESAFE_API_KEY?: string;
   AI_GATEWAY_URL?: string;
-  REQUIRE_MATCH_APPROVAL?: string;
   TURNSTILE_SECRET_KEY?: string;
   DEMO_MODE?: string;
 }

@@ -151,8 +151,8 @@ export const matches = pgTable("matches", {
   menteeId: text("mentee_id")
     .notNull()
     .references(() => members.id, { onDelete: "cascade" }),
-  // Mutual interest creates an awaiting-coordinator match by default; the
-  // approval gate is a staff capability that can be relaxed later.
+  // Writers always set status explicitly. Mutual interest creates an active
+  // match; "awaiting-coordinator" remains only for legacy/staff records.
   status: matchStatus("status").notNull().default("awaiting-coordinator"),
   goal: text("goal").notNull().default(""),
   nextMeeting: timestamp("next_meeting", timestamptz),
