@@ -1,0 +1,52 @@
+{
+  "name": "techwomenaz-platform",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "packageManager": "npm@12.2.3",
+  "dependencies": {
+    "react": "latest",
+    "react-dom": "latest",
+    "vinext": "latest",
+    "react-server-dom-webpack": "latest",
+    "@vinext/cloudflare": "latest",
+    "@trpc/server": "^11.0.0",
+    "@trpc/client": "^11.0.0",
+    "zod": "^4.0.0",
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.16.0",
+    "better-auth": "^1.7.0",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest",
+    "vite": "8.3.0",
+    "@vitejs/plugin-react": "latest",
+    "@vitejs/plugin-rsc": "latest",
+    "@cloudflare/vite-plugin": "beta",
+    "cf": "latest",
+    "@types/pg": "^8.15.0",
+    "drizzle-kit": "^0.31.0",
+    "vitest": "^4.0.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "@playwright/test": "^1.56.0",
+    "dotenv": "^17.0.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "vite preview",
+    "deploy": "vinext-cloudflare deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs"
+  }
+}
